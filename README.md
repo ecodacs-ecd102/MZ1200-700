@@ -29,7 +29,6 @@ C104で発表した、MZ-700っぽいMZ-1200 です。
   細々したツール類
 
 ----
-・ROMやBASICの元データは、差分の元バイトを除きここにはありません。各自容易してください。
-・GALのビルドには galette ( https://arbitrary.name/blog/all/galette.html ) が必要です。
-・Z80のアセンブルには、zasm ( https://www.vector.co.jp/soft/dos/prog/se010314.html )を
-　linux上の MZ-DOS エミュレータ emu2 ( https://github.com/dmsc/emu2 )で動かしています。
+ - ROMやBASICの元データは、差分の元バイトを除きここにはありません。各自容易してください。
+ - GALのビルドには galette ( https://arbitrary.name/blog/all/galette.html ) が必要です。
+ - Z80のアセンブルには、zasm ( https://www.vector.co.jp/soft/dos/prog/se010314.html )をlinux上の MZ-DOS エミュレータ emu2 ( https://github.com/dmsc/emu2 )で動かしています。
