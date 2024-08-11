@@ -1,0 +1,18 @@
+﻿Designator,Footprint,Quantity,Value,LCSC Part #
+BT1,Battery_CR2032-AKIZUKI_VERTICAL_HOLDER,1,CR2032,
+"C1, C10, C2, C3, C4, C9",LargePad_R_Axial_DIN0204_L3.6mm_D1.6mm_P2.54mm_Vertical,6,0.1,
+C5,CP_Radial_D7.5mm_P2.50mm,1,100uF,
+C6,DX_5R5VxxxxU_D11.5mm_P5.00mm,1,1F,
+"C7, C8",LargePad_R_Axial_DIN0204_L3.6mm_D1.6mm_P2.54mm_Vertical,2,33p,
+"D1, D2, D3",D_A-405_P7.62mm_Horizontal_LargePad,3,D,
+"H1, H2, H3, H4",MountingHole_3.2mm_M3,4,MountingHole_M3,
+"J1, J2",PinSocket_2x25_P2.54mm_Vertical,2,MZ-80K/700 BUS,
+"J3, J4",PinHeader_1x2_P2.5mm_Drill1.1mm,2,Power,B2B-XH-A(LF)(SN)
+"R1, R4",LargePad_R_Axial_DIN0207_L6.3mm_D2.5mm_P7.62mm_Horizontal,2,10k,
+"R2, R3",LargePad_R_Axial_DIN0204_L3.6mm_D1.6mm_P2.54mm_Vertical,2,1k,
+SW1,PinHeader_1x03_P2.54mm_Vertical,1,RAM CUT,
+SW2,PinHeader_1x03_P2.54mm_Vertical,1,RAM BANK,
+"U1, U4, U6, U7",DIP-16_W7.62mm_Socket_LongPads,4,74LS161,
+U2,DIP-20_W7.62mm_Socket_LongPads,1,GAL16V8,
+U3,SSOP-32_11.305x20.495mm_P1.27mm,1,M68AF127B,
+U5,DIP-16_W7.62mm_Socket_LongPads,1,MAX691,

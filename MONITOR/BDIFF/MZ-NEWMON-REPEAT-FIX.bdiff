@@ -1,0 +1,7 @@
+MZ NEW MONITORのキーリピート開始が倍速MZ-1200(4MHz)だと早すぎるので遅くするパッチ(80K,700共通)
+Left :MZ-NEWMON.orig.bin
+Right:MZ-NEWMON+REPEAT-FIX.bin
+;0BF3: 0604	LD	B,04H		; 恐らくMZ-80Kの2MHz用と思われるディレイタイミング
+;  ↓
+;0BF3: 0606	LD	B,06H		; 1.5倍くらいに
+00000BF4 04 06

@@ -1,0 +1,46 @@
+GAL16V8
+MZ1200_CLOCK_SELECTOR
+
+;1      2       3       4       5       6       7       8       9       10
+CLK     NC      /CLK2M  NC      CLK4M   NC      /M1     NC      CLKSEL  GND
+;11     12      13      14      15      16      17      18      19      20
+/OE     SYNCSEL CK4M3   CK4M4   /RAMCLK CPUCLK  CK4M2   CK4M1   TRIG    VCC
+
+;
+;INPUTs
+;
+; CLK   : (Connect to TRIG)
+; /CLK2M: 2MHz, inverted
+; CLK4M : 4MHz, (not inverted)
+; CLKSEL: Clock selection: High=4MHz, Low=2MHz (Motor ON=Low)
+; /M1: To Z80 /M1 output
+; /OE: Always 'L'
+;
+
+;
+; OUTPUTs
+;
+; CPUCLK  : to Z80's Clock
+; /RAMCLK : to clock driver 74F14 (inverter)
+
+; Delayed CLock for Timing Adjust
+CK4M1 = CLK4M
+CK4M2 = CK4M1
+CK4M3 = CK4M2
+CK4M4 = CK4M3
+
+; Connect TRIG to CLK for synchronous switching
+;/TRIG = /CLK2M * /CK4M1 * M1
+;/TRIG = /CLK2M * /CK4M2 * M1
+/TRIG = /CLK2M * /CK4M3 * M1
+;/TRIG = /CLK2M * /CK4M4 * M1
+
+
+; Clock selection Synchronous with CPU clock
+SYNCSEL.R = CLKSEL
+
+; To CPU/RAM Clock
+CPUCLK = /CLK2M * /SYNCSEL + /CK4M2 * SYNCSEL
+RAMCLK = /CLK2M * /SYNCSEL + /CK4M1 * SYNCSEL
+
+DESCRIPTION

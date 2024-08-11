@@ -1,0 +1,29 @@
+
+
+ Pin # | Name     | Pin Type
+-----------------------------
+   1   | /IORQ    | Clock/Input
+   2   | /WR      | Input
+   3   | A7       | Input
+   4   | A6       | Input
+   5   | A5       | Input
+   6   | A4       | Input
+   7   | A3       | Input
+   8   | A2       | Input
+   9   | A1       | Input
+  10   | A0       | Input
+  11   | /RESET   | Input
+  12   | GND      | GND
+  13   | NC       | Input
+  14   | MRAMCLR  | Output
+  15   | /MRAMEN  | Output
+  16   | IORAMCLR | Output
+  17   | /IORAMEN | Output
+  18   | PCG15LCH | Output
+  19   | /PCG15CLR | Output
+  20   | /PCG15EN | Output
+  21   | NC       | NC
+  22   | NC       | NC
+  23   | IORAMEN0 | Output
+  24   | VCC      | VCC
+

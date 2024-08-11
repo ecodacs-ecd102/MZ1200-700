@@ -1,0 +1,15 @@
+#!/bin/bash
+
+if [ "$2" = "" ]; then
+  cat <<EOF 1>&2
+
+Usage: $0 file1.bin file2.bin
+
+EOF
+  exit 1
+fi
+cat <<EOF
+Left :$1
+Right:$2
+EOF
+cmp -l "$1" "$2" | gawk '{printf "%08X %02X %02X\n", $1-1, strtonum(0$2), strtonum(0$3)}'

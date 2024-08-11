@@ -1,0 +1,25 @@
+
+
+ Pin # | Name     | Pin Type
+-----------------------------
+   1   | /IORQ    | Input
+   2   | /RD      | Input
+   3   | /WR      | Input
+   4   | A7       | Input
+   5   | A6       | Input
+   6   | A5       | Input
+   7   | A4       | Input
+   8   | A3       | Input
+   9   | A2       | Input
+  10   | GND      | GND
+  11   | A1       | Input
+  12   | CLKL     | Output
+  13   | A0       | Input
+  14   | /OE      | Output
+  15   | /WE      | Output
+  16   | /SETL    | Output
+  17   | /SETH    | Output
+  18   | /RST     | Output
+  19   | CLKH     | Output
+  20   | VCC      | VCC
+

@@ -1,0 +1,182 @@
+GAL22V10
+New PCG_no_youna_mono main board control Dual Port RAM
+
+;=============================================================================================
+;1     2        3        4       5      6      7      8       9       10      11         12
+/PCGON /SEL     SEL1     /SEL2   /SEL2W COPY   VA9    VA10    VA11    PA10    PCGOFFPA11 GND
+;13    14       15       16      17     18     19     20      21      22      23         24
+/PET  /P128M256 RAMA10a  RAMA10b SEL3   /RAMOE /RAMWL /RAMWR  /ROMOE  RAMPA10 MZ256      VCC
+;=============================================================================================
+
+;----------------
+; INPUTs
+;----------------
+; /PCGON     : PCG ON=Low
+; /SEL       : Inverted SEL from subboard
+; SEL1       : 330uS delayed SEL
+; /SEL2      : 220uS delayed SEL1
+; /SEL2W     : 100uS delayed SEL1 (for RAM /WE)
+; COPY       : COPY from subboard
+; VA9        : A9  from CG-ROM socket, used in PET mode
+; VA10       : A10 from CG-ROM socket, used in MZ mode and PET-128 mode
+; VA11       : A11 from CG-ROM       , used to select which 7130 to be displayed
+; PA10       : PA10 (To select which 7130 to be programmed)
+; PCGOFFPA11 : PA11 from Subboard, H=PCG OFF
+; /PET       : L=PET mode, H=MZ mode (/PET / MZ)
+; /P128M256  : L=PET-128chr/MZ-256chr mode, H=PET-64chr/MZ-128chr mode (=HAL PCG-compatible) mode
+
+;
+;----------------
+; Needed OUTPUTs
+;----------------
+; RAMA10a    : Video BUS side RAM A10 for RAM 1
+; RAMA10b    : Video BUS side RAM A10 for RAM 2
+; SEL3       : H=RAM WRITING
+; /RAMOE     : Video BUS side RAM /OE
+; /RAMWL     : Video BUS side RAM /WE
+; /RAMWR     : PC BUS side RAM /WE
+; /ROMOE     : H=RAM characer is showing, L=ROM copy or ROM character is showing
+; RAMPA10    : /PA10 when COPY mode (to avoid L/R address collision), otherwise PA10
+; MZ256      : H=MZ256 mode (= /PET * P128M256)
+
+;============================================================
+; RAMA10a    : Video BUS side RAM A10 for RAM 1 (H=Active)
+;              a側は A10=0 のときセレクトされる
+; RAMA10b    : Video BUS side RAM A10 for RAM 2 (H=Active)
+;              b側は A10=1 のときセレクトされる
+;
+;  コピー中[(SEL3 * COPY)のとき]:
+;   a=/PA10, b=PA10
+;    RAMA10a = /PA10 * (SEL3 * COPY) = /PA10 * SEL * /SEL2 * COPY
+;    RAMA10b =  PA10 * (SEL3 * COPY) =  PA10 * SEL * /SEL2 * COPY
+;  表示中[/(SEL3 * COPY)のとき]:
+;  (MZ256のとき、互換性のためにPA10=0で書き込んだRAM(a側)は、VA10=1のときに表示する)
+;   MZ256 なら(a=VA10, b=/VA10),そうでなければ(a=/VA11 or b=VA11)
+;    RAMA10a = (MZ256 * VA10 + /MZ256 * /VA11) * /(SEL3 * COPY)
+;            = (MZ256 * VA10 + /MZ256 * /VA11) * (/SEL + SEL2 + /COPY)
+;            = (MZ256 * VA10 + /MZ256 * /VA11) * /SEL
+;            + (MZ256 * VA10 + /MZ256 * /VA11) * SEL2
+;            + (MZ256 * VA10 + /MZ256 * /VA11) * /COPY
+;            = MZ256 * VA10 * /SEL  + /MZ256 * /VA11 * /SEL
+;            + MZ256 * VA10 * SEL2  + /MZ256 * /VA11 * SEL2
+;            + MZ256 * VA10 * /COPY + /MZ256 * /VA11 * /COPY
+;            =  MZ256 *  VA10 * /SEL
+;            + /MZ256 * /VA11 * /SEL
+;            +  MZ256 *  VA10 * SEL2
+;            + /MZ256 * /VA11 * SEL2
+;            +  MZ256 *  VA10 * /COPY
+;            + /MZ256 * /VA11 * /COPY
+;
+;    RAMA10b =  MZ256 * /VA10 * /SEL
+;            + /MZ256 *  VA11 * /SEL
+;            +  MZ256 * /VA10 * SEL2
+;            + /MZ256 *  VA11 * SEL2
+;            +  MZ256 * /VA10 * /COPY
+;            + /MZ256 *  VA11 * /COPY
+;
+RAMA10a = /PA10 * SEL * /SEL2 * COPY \		// PA10=0
+        +  MZ256 *  VA10 * /SEL \		// MZ256のとき VA10=1
+        +  MZ256 *  VA10 * SEL2 \
+        +  MZ256 *  VA10 * /COPY \
+        + /MZ256 * /VA11 * /SEL \		// MZ256でないとき VA11=0
+        + /MZ256 * /VA11 * SEL2 \
+        + /MZ256 * /VA11 * /COPY
+
+RAMA10b =  PA10 * SEL * /SEL2 * COPY \		// PA10=1
+        +  MZ256 * /VA10 * /SEL \		// MZ256のとき VA10=0
+        +  MZ256 * /VA10 * SEL2 \
+        +  MZ256 * /VA10 * /COPY \
+        + /MZ256 *  VA11 * /SEL \		// MZ256でないとき VA11=1
+        + /MZ256 *  VA11 * SEL2 \
+        + /MZ256 *  VA11 * /COPY
+
+;------------------------------------------------------------
+; SEL3: RAM書き込み時、アドレス線を保持しなければならない期間を示す(=330+220=550uS)
+;       SEL の立ち上がり～SEL2の立ち上がりまで。
+;       (Rise: SEL rising edge, Fall: SEL2 rising edge)
+;
+SEL3 = SEL * /SEL2
+
+;------------------------------------------------------------
+; RAMOE
+;   RAMから表示中を示す
+;     PCGON * /PCGOFFPA11 * 
+;        (   (/PET             * VA10)					// MZモード    : VA10 のみ
+;          + (/PET *  P128M256)						// MZ256モード : 常にRAMから
+;          + ( PET * /P128M256 * VA10 * VA9)				// PETモード   : VA9*VA10
+;          + ( PET *  P128M256 * VA10) )				// PET128モード: VA10 のみ
+;     =
+;       PCGON * /PCGOFFPA11 * /PET *             VA10			// MZ
+;     + PCGON * /PCGOFFPA11 * /PET *  P128M256				// MZ256
+;     + PCGON * /PCGOFFPA11 *  PET * /P128M256 * VA10 * VA9		// PET
+;     + PCGON * /PCGOFFPA11 *  PET *  P128M256 * VA10			// PET128
+;   ただし、ROM to RAM copy mode 時はなし
+;     /(SEL3 * COPY) = /(SEL * /SEL2 * COPY) = /SEL + SEL2 + /COPY
+;
+RAMOE  = /SEL  * PCGON * /PCGOFFPA11 * /PET *             VA10 \		// MZ mode : if VA10 = 1
+       + SEL2  * PCGON * /PCGOFFPA11 * /PET *             VA10 \		// MZ mode : if VA10 = 1
+       + /COPY * PCGON * /PCGOFFPA11 * /PET *             VA10 \		// MZ mode : if VA10 = 1
+       + /SEL  * PCGON * /PCGOFFPA11 * /PET *  P128M256 \			// MZ256   : always 1
+       + SEL2  * PCGON * /PCGOFFPA11 * /PET *  P128M256 \			// MZ256   : always 1
+       + /COPY * PCGON * /PCGOFFPA11 * /PET *  P128M256 \			// MZ256   : always 1
+       + /SEL  * PCGON * /PCGOFFPA11 *  PET * /P128M256 * VA10 * VA9 \		// PCG6500 : if VA10 = 1 (GRPH) and VA9 = 1 (KANA)
+       + SEL2  * PCGON * /PCGOFFPA11 *  PET * /P128M256 * VA10 * VA9 \		// PCG6500 : if VA10 = 1 (GRPH) and VA9 = 1 (KANA)
+       + /COPY * PCGON * /PCGOFFPA11 *  PET * /P128M256 * VA10 * VA9 \		// PCG6500 : if VA10 = 1 (GRPH) and VA9 = 1 (KANA)
+       + /SEL  * PCGON * /PCGOFFPA11 *  PET *  P128M256 * VA10 \		// PET128  : if VA10 = 1
+       + SEL2  * PCGON * /PCGOFFPA11 *  PET *  P128M256 * VA10 \		// PET128  : if VA10 = 1
+       + /COPY * PCGON * /PCGOFFPA11 *  PET *  P128M256 * VA10			// PET128  : if VA10 = 1
+
+;------------------------------------------------------------
+; RAMWx
+;   from SEL1 rising to SEL2W rising = SEL1 * /SEL2W
+;   /RAMWL     : Video BUS side RAM /WE
+;   /RAMWR     : PC BUS side RAM /WE
+RAMWL = SEL1 * /SEL2W * COPY	// COPY
+RAMWR = SEL1 * /SEL2W * /COPY	// not COPY
+
+;------------------------------------------------------------
+; ROMOE
+;  1.ROMを表示中または 2.COPYモードでアクティブ
+;  1.Not showing RAM caracter:
+;      /PCGON				// PCG OFF
+;    + PCGOFFPA11			// PCG OFF
+;     ↓RAM表示条件
+;    +  PET * /P128M256 * /VA9		// PETでVA9=0
+;    +  PET             * /VA10		// PET,PET128でVA10=0
+;    + /PET * /P128M256 * /VA10		// MZでVA10=0
+;    + /PET *  P128M256 * 0		// MZ256では無し
+;    =
+;    +  PET * /P128M256 * /VA9		// PETでVA9=0
+;    +  PET             * /VA10		// PET,PET128でVA10=0
+;    + /PET * /P128M256 * /VA10		// MZでVA10=0
+;
+;  2.ROM to RAM copy mode:
+;     SEL3 * COPY
+;     =
+;       SEL * /SEL2 * COPY
+;
+ROMOE = /PCGON + PCGOFFPA11 \		// PCG OFF
+     +  PET * /P128M256 * /VA9 \	// PETでVA9=0
+     +  PET             * /VA10 \	// PET,PET128でVA10=0
+     + /PET * /P128M256 * /VA10 \	// MZでVA10=0
+     + SEL * /SEL2 * COPY \		// COPYモード
+
+;------------------------------------------------------------
+; RAMPA10    : 通常は PA10 をそのまま出す。
+;              コピーモード時は反転した /PA10 を出す。
+;              こうすることで、コピーモード時にデュアルポートRAMの両サイドのバスの一致を防ぐ。
+RAMPA10 = /PA10 * SEL * /SEL2 * COPY \		// COPYモード
+        + PA10 * /SEL \				// 通常モード
+        + PA10 * SEL2 \				// ..
+        + PA10 * /COPY 				// ..
+
+;------------------------------------------------------------
+; MZ256
+;  PETでなく、P128M256がアクティブ
+;
+MZ256 = /PET * P128M256
+
+;============================================================
+
+DESCRIPTION
+   New PCG DP-RAM port version RANDOM Logic

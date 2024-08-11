@@ -1,0 +1,25 @@
+
+
+                                GAL16V8
+
+                          -------\___/-------
+                      CLK |  1           20 | VCC
+                          |                 |
+                       NC |  2           19 | TRIG
+                          |                 |
+                   /CLK2M |  3           18 | CK4M1
+                          |                 |
+                       NC |  4           17 | CK4M2
+                          |                 |
+                    CLK4M |  5           16 | CPUCLK
+                          |                 |
+                       NC |  6           15 | /RAMCLK
+                          |                 |
+                      /M1 |  7           14 | CK4M4
+                          |                 |
+                       NC |  8           13 | CK4M3
+                          |                 |
+                   CLKSEL |  9           12 | SYNCSEL
+                          |                 |
+                      GND | 10           11 | /OE
+                          -------------------

@@ -1,0 +1,40 @@
+GAL16V8
+MZ-1R12 no younamono
+
+;1        2         3         4         5         6         7         8         9         10
+/IORQ     /RD       /WR       A7        A6        A5        A4        A3        A2        GND
+;11       12        13        14        15        16        17        18        19        20
+A1        CLKL      A0        /OE       /WE       /SETL     /SETH     /RST      CLKH      VCC
+
+;
+;INPUTs
+; /IORQ, /RD /WR, A7-A0 : From Z-80
+
+;
+;OUTPUTs
+
+; OE: I/O READ F9
+OE = IORQ * RD * A7 * A6 * A5 * A4 * A3 * /A2 * /A1 * A0
+
+; WE: I/O WRITE FA
+WE = IORQ * WR * A7 * A6 * A5 * A4 * A3 * /A2 * A1 * /A0
+
+; SETL: I/O WRITE F9
+SETL = IORQ * WR * A7 * A6 * A5 * A4 * A3 * /A2 * /A1 * A0
+
+; SETH: I/O WRITE F8
+SETH = IORQ * WR * A7 * A6 * A5 * A4 * A3 * /A2 * /A1 * /A0
+
+; RST: I/O READ F8
+RST = IORQ * RD * A7 * A6 * A5 * A4 * A3 * /A2 * /A1 * /A0
+
+; CLK: latter edge of OE, WE or SET (since RST = Async)
+/CLKH = OE + WE + SETH
+/CLKL = OE + WE + SETL
+
+DESCRIPTION
+
+  I/O	OUT		IN
+  F8	Sets Counter H	Resets Counter
+  F9	Sets Counter L	Reads DATA
+  FA	Writes DATA	N/A

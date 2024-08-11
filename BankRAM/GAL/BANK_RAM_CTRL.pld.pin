@@ -1,0 +1,25 @@
+
+
+ Pin # | Name     | Pin Type
+-----------------------------
+   1   | /MREQ    | Input
+   2   | /RFSH    | Input
+   3   | A15      | Input
+   4   | A14      | Input
+   5   | A13      | Input
+   6   | A12      | Input
+   7   | /MRAMEN  | Input
+   8   | /IORAMEN | Input
+   9   | /PCG15EN | Input
+  10   | GND      | GND
+  11   | /WR      | Input
+  12   | /RAMCS   | Output
+  13   | /MREQOUT | Output
+  14   | /RDOUT   | Output
+  15   | /RAMWE   | Output
+  16   | /RAMOE   | Output
+  17   | /RD      | Input
+  18   | /WROUT   | Output
+  19   | RAMA14   | Output
+  20   | VCC      | VCC
+

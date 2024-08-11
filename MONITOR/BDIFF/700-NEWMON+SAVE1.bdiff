@@ -1,0 +1,4 @@
+MZ-700用NEW MONITORのデフォルトのカセット書込回数(2回)を1回にするパッチ
+Left :700-NEWMON.orig.bin
+Right:700-NEWMON+SAVE1.bin
+00000AC4 5D 57

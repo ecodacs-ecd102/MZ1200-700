@@ -1,0 +1,126 @@
+#!/bin/bash
+
+ITNR="[31;1m"
+ITNG="[32;1m"
+ITNY="[33;1m"
+ITNB="[34;1m"
+ITNM="[35;1m"
+ITNC="[36;1m"
+ITNW="[37;1m"
+ITN="${ITNY}"
+NOR="[0m"
+
+# Catch errors and display the offending line number:
+set -e
+trap 'echo "${ITNR}$0 FAILED at line ${LINENO}${NOR}"' ERR
+
+cd $(dirname $0) ; CWD=$(pwd)
+
+SBASIC_SRC=SBASIC_patch
+SBASIC_MZT_IN=../../SD/MZ700/S-BASIC/S-BASIC
+
+eSBASIC_SRC=1Z-013B_patch
+eSBASIC_MZT_IN=../../SD/MZ700/S-BASIC/1Z-013B
+
+PCGBASIC_SRC=1Z-013B_patch
+PCGBASIC_MZT_IN=../../SD/MZ700/PCG-BASIC/PCG-BASIC
+
+HuBASIC_SRC=HuBASIC_patch
+HuBASIC_MZT_IN=../../SD/MZ700/HuBASIC/HuBASIC
+
+COMP_SRC=COMP_patch
+COMP_MZT_IN=../../SD/MZ700/S-BASIC/COMP/s-basic-compiler
+
+COMMON_SRC=COMMON
+
+# pre-process
+chmod 644 *.asm
+rm -vf *.BAK *.bak
+iconv -f utf-8 -t cp932 "$COMMON_SRC.asm"  | sed -e 's/\r//g' | sed -e 's/$/\r/g' > "$COMMON_SRC.s"
+
+# build
+for i in "$SBASIC_SRC" "$eSBASIC_SRC" "$HuBASIC_SRC" "$COMP_SRC"; do
+  iconv -f utf-8 -t cp932 "$i.asm" | sed -e 's/\r//g' | sed -e 's/$/\r/g' > "$i.s"
+  find . -iname "$i.bin" -delete
+  find . -iname "$i.prn" -delete
+  find . -iname "$i.hex" -delete
+  /root/MZ1200/z80bin/zasm -C$i.bin -L$i.PRN -Z $i.s 2>&1 | tee asm.log
+  find . -iname "$i.bin" -exec mv -f "{}" "$i.bin" \;
+  find . -iname "$i.prn" -exec mv -f "{}" "$i.PRN" \;
+  if ! grep -qFe '  0 warning(s),   0 error(s) in assembly.' asm.log; then
+    echo "${ITNY}$i.s: Assemble error !$NOR" 1>&2
+    exit 1
+  fi
+  rm -f asm.log "$i.s"
+
+  dd if=$i.bin of=$i.jptbl.bin bs=3 count=5
+  dd if=$i.bin of=$i.body.bin bs=1 skip=$(( 3 * 5 ))
+done
+
+rm "$COMMON_SRC.s"
+
+# patch
+for m in "" "+2MHz"; do
+  # S-BASIC JP
+  S="$SBASIC_SRC"
+  M="$SBASIC_MZT_IN"
+  I="$M$m.mzt"
+  O="$M$m+SD.mzt"
+  D="$M$m+SD.bdiff"
+  dd if="$I" of="$O"
+  dd if="$S.jptbl.bin" of="$O" bs=1 conv=notrunc seek=$((128 + 0x21))
+  dd if="$S.body.bin"  of="$O" bs=1 conv=notrunc seek=$((128 + 0x0B17))
+  bdiff "$I" "$O" > "$D"
+  mv -vf "$D" .
+
+  # S-BASIC EU
+  S="$eSBASIC_SRC"
+  M="$eSBASIC_MZT_IN"
+  I="$M$m.mzt"
+  O="$M$m+SD.mzt"
+  D="$M$m+SD.bdiff"
+  dd if="$I" of="$O"
+  dd if="$S.jptbl.bin" of="$O" bs=1 conv=notrunc seek=$((128 + 0x21))
+  dd if="$S.body.bin"  of="$O" bs=1 conv=notrunc seek=$((128 + 0x0A3B))
+  bdiff "$I" "$O" > "$D"
+  mv -vf "$D" .
+
+  # PCG-BASIC 
+  S="$PCGBASIC_SRC"
+  M="$PCGBASIC_MZT_IN"
+  I="$M$m.mzt"
+  O="$M$m+SD.mzt"
+  D="$M$m+SD.bdiff"
+  dd if="$I" of="$O"
+  dd if="$S.jptbl.bin" of="$O" bs=1 conv=notrunc seek=$((128 + 0x21))
+  dd if="$S.body.bin"  of="$O" bs=1 conv=notrunc seek=$((128 + 0x0A3B))
+  bdiff "$I" "$O" > "$D"
+  mv -vf "$D" .
+
+  # Hu-BASIC
+  S="$HuBASIC_SRC"
+  M="$HuBASIC_MZT_IN"
+  I="$M$m.mzt"
+  O="$M$m+SD.mzt"
+  D="$M$m+SD.bdiff"
+  dd if="$I" of="$O"
+  dd if="$S.jptbl.bin" of="$O" bs=1 conv=notrunc seek=$((128 + 0x3B))
+  dd if="$S.body.bin"  of="$O" bs=1 conv=notrunc seek=$((128 + 0x0C7E))
+  # TAPE READ ERROR
+  # ->SD ACCESS ERROR
+  echo -n "SD ACCESS" | dd of="$O" bs=1 conv=notrunc seek=$(grep -boae "TAPE READ" "$O" | sed -e 's/:.*$//g')
+  bdiff "$I" "$O" > "$D"
+  mv -vf "$D" .
+
+  # S-BASIC Compiler
+  S="$COMP_SRC"
+  M="$COMP_MZT_IN"
+  I="$M$m.mzt"
+  O="$M$m+SD.mzt"
+  D="$M$m+SD.bdiff"
+  dd if="$I" of="$O"
+  dd if="$S.jptbl.bin" of="$O" bs=1 conv=notrunc seek=$((128 + 0x21))
+  dd if="$S.body.bin"  of="$O" bs=1 conv=notrunc seek=$((128 + 0x0A3B))
+  bdiff "$I" "$O" > "$D"
+  mv -vf "$D" .
+done

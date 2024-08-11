@@ -1,0 +1,161 @@
+GAL22V10
+New PCG_no_youna_mono main board control
+
+;=========================================================================================
+;1        2    3       4        5      6      7          8       9       10      11    12
+PCGON     /SEL SEL1    /SEL2    /SEL2W COPY   PCGOFFPA11 PCGEN   VA9     VA10    /PET  GND
+;13       14   15      16       17     18     19         20      21      22      23    24
+/PET128EN SEL3 /RAMDIR /RAMGATE /RAMWE /ROMOE /RAMASV    /RAMASP /ROMASV /ROMASP /PDEN VCC
+;=========================================================================================
+
+;----------------
+; INPUTs
+;----------------
+; PCGON      : Hardware SW, ON=High
+; /SEL       : Inverted SEL from subboard
+; SEL1       : 330uS delayed SEL
+; /SEL2      : 220uS delayed SEL1
+; /SEL2W     : 100uS delayed SEL1 (for RAM /WE)
+; COPY       : COPY from subboard
+; PCGOFFPA11 : PA11 from Subboard, H=PCG OFF
+; PCGEN      : H=PCG enable. (from PCGEN D-FF)
+; VA9        : A9 from CG-ROM socket, used in PET mode
+; VA10       : A10 from CG-ROM socket, used in MZ mode and PET-128 mode
+; /PET       : L=PET mode, H=MZ mode (/PET / MZ)
+; /PET128EN  : L=PET-128chr. mode, H=PET64chr.(=PCG6500-compatible) mode
+
+;
+;----------------
+; Needed OUTPUTs
+;----------------
+; SEL3       : H=RAM WRITING (===/RAMOE)
+; /RAMDIR    : Data bus LS245 direction, L=RAM->ROM, H=ROM->RAM(COPY)
+; /RAMGATE   : L=COPY ROM to RAM or RAM characer is showing
+;; /RAMOE    : H=RAM writing, otherwize L (===SEL3)
+; /RAMWE     : L=RAM writing
+; /ROMOE     : H=RAM characer is showing
+; /RAMASV    : L=RAM addr bus is connected to CGROM Socket (DISPLAY)
+; /RAMASP    : L=RAM addr bus is connected to PAx (WRITE)
+; /ROMASV    : L=ROM addr bus is connected to CGROM Socket (DISPLAY)
+; /ROMASP    : L=ROM addr bus is connected to PAx (COPY) 
+; /PDEN      : L=PDx is valid for RAM (WRITE)
+
+;============================================================
+
+; SEL3: Rise SEL rising edge, Fall SEL2 rising edge
+SEL3 = SEL * /SEL2
+; /SEL3 = /SEL + SEL2
+
+; RAMDIR
+;   ROM-->RAM: only when COPY mode
+;   ROM<--RAM: otherwize
+;   = /(SEL3 * COPY)
+;     = /(SEL * /SEL2 * COPY)
+/RAMDIR = SEL * /SEL2 * COPY
+
+; RAMGATE
+;   Showing RAM caracter:
+;     PCGON * PCGEN * /PCGOFFPA11 * ((/PET * VA10) + (PET * /PET128EN * VA10 * VA9) + (PET * PET128EN * VA10))
+;     =
+;       PCGON * PCGEN * /PCGOFFPA11 * /PET *             VA10
+;     + PCGON * PCGEN * /PCGOFFPA11 *  PET * /PET128EN * VA10 * VA9
+;     + PCGON * PCGEN * /PCGOFFPA11 *  PET *  PET128EN * VA10
+;   ROM to RAM copy mode:
+;     SEL3 * COPY
+;     =
+;       SEL * /SEL2 * COPY
+RAMGATE = PCGON * PCGEN * /PCGOFFPA11 * /PET *             VA10 \	// MZ mode     : if VA10 = 1
+        + PCGON * PCGEN * /PCGOFFPA11 *  PET * /PET128EN * VA10 * VA9 \	// PCG6500 mode: if VA10 = 1 (GRPH) and VA9 = 1 (KANA)
+        + PCGON * PCGEN * /PCGOFFPA11 *  PET *  PET128EN * VA10 \	// PET 128chr. : if VA10 = 1
+        + SEL * /SEL2 * COPY
+
+;; RAMOE
+;;   == /SEL3 (not writing)
+
+; RAMWE
+;   from SEL1 rising to SEL2W rising
+RAMWE = SEL1 * /SEL2W
+
+; ROMOE
+;   Not showing RAM caracter:
+;      /PCGON 
+;    + /PCGEN
+;    + PCGOFFPA11
+;    + /((/PET * VA10) + (PET * /PET128EN * VA10 * VA9) + (PET * PET128EN * VA10))
+;   =
+;       /PCGON
+;     + /PCGEN
+;     + PCGOFFPA11
+;     + /(/PET * VA10) * /(PET * /PET128EN * VA10 * VA9) * /(PET * PET128EN * VA10)
+;     =
+;         /PCGON
+;       + /PCGEN
+;       + PCGOFFPA11
+;       + (PET + /VA10) * (/PET + PET128EN + /VA10 + /VA9) * (/PET + /PET128EN + /VA10)
+;       =
+;           /PCGON
+;         + /PCGEN
+;         + PCGOFFPA11
+;         + PET   * (/PET + PET128EN + /VA10 + /VA9) * (/PET + /PET128EN + /VA10)
+;         + /VA10 * (/PET + PET128EN + /VA10 + /VA9) * (/PET + /PET128EN + /VA10)
+;         =
+;             /PCGON
+;           + /PCGEN
+;           + PCGOFFPA11
+;           + ((PET * PET128EN + PET * /VA10 + PET * /VA9) * (/PET + /PET128EN + /VA10))
+;           + ((/PET * /VA10 + PET128EN * /VA10 + /VA10) * (/PET + /PET128EN + /VA10))
+;           =
+;               /PCGON
+;             + /PCGEN
+;             + PCGOFFPA11
+;             + (  (PET * PET128EN + PET * /VA10 + PET * /VA9) * /PET
+;                + (PET * PET128EN + PET * /VA10 + PET * /VA9) * /PET128EN
+;                + (PET * PET128EN + PET * /VA10 + PET * /VA9) * /VA10 )
+;             + (  /VA10 * /PET
+;                + /VA10 * /PET128EN
+;                + /VA10 )
+;           =
+;               /PCGON
+;             + /PCGEN
+;             + PCGOFFPA11
+;             + (  (PET * /PET128EN * /VA10 + PET * /PET128EN * /VA9)
+;                + (PET *  PET128EN * /VA10 + PET * /VA10 + PET * /VA10 * /VA9) )
+;             + /VA10
+;           =
+;               /PCGON
+;             + /PCGEN
+;             + PCGOFFPA11
+;             + /VA10
+;             + PET * /PET128EN * /VA9
+;
+;   ROM to RAM copy mode:
+;     SEL3 * COPY
+;     =
+;       SEL * /SEL2 * COPY
+ROMOE = /PCGON + /PCGEN + PCGOFFPA11 + /VA10 + PET * /PET128EN * /VA9 + SEL * /SEL2 * COPY
+
+; RAMASV
+;   Not write mode
+;   = /SEL3
+;    = /(SEL * /SEL2)
+; RAMASP = /RAMASV
+;    = SEL3
+/RAMASV = SEL * /SEL2	// the same delay as SEL3
+RAMASP  = SEL * /SEL2	// same delay
+
+; ROMASP
+;   Enabled only when ROM to RAM copy mode:
+;   = SEL3 * COPY
+;   = (SEL * /SEL2) * COPY
+; ROMASV= = /ROMASP
+ROMASP = SEL * /SEL2 * COPY
+/ROMASV = SEL * /SEL2 * COPY
+
+; PDEN = SEL3 * /COPY 
+;      = SEL * /SEL2 * /COPY
+PDEN = SEL * /SEL2 * /COPY
+
+;============================================================
+DESCRIPTION
+   New PCG RANDOM Logic
+

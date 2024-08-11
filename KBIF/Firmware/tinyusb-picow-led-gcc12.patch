@@ -1,0 +1,22 @@
+diff -upr pico.org/pico-sdk/lib/tinyusb/hw/bsp/family_support.cmake pico/pico-sdk/lib/tinyusb/hw/bsp/family_support.cmake
+--- pico.orig/pico-sdk/lib/tinyusb/hw/bsp/family_support.cmake	2023-12-29 21:55:39.210199602 +0900
++++ pico/pico-sdk/lib/tinyusb/hw/bsp/family_support.cmake	2023-08-10 20:34:19.424663891 +0900
+@@ -119,6 +119,18 @@ if (NOT TARGET _family_support_marker)
+                 target_compile_options(${TARGET} PUBLIC -Wno-strict-aliasing)
+             endif()
+         endif()
++
++	if (PICO_BOARD STREQUAL "pico_w")
++		# due to warnings from pico_cyw43_arch_none
++		target_compile_options(${TARGET} PUBLIC
++			-Wno-error=null-dereference
++			-Wno-error=conversion
++			-Wno-error=sign-conversion
++			-Wno-error=sign-compare
++			-Wno-error=shadow
++			-Wno-error=unused-parameter
++		)
++	endif()
+     endfunction()
+ 
+     # configure an executable target to link to tinyusb in device mode, and add the board implementation

@@ -1,0 +1,84 @@
+GAL16V8
+MZ1200_BANK_RAM_CONTROL
+
+;1        2         3         4         5         6         7         8         9         10
+/MREQ     /RFSH     A15       A14       A13       A12       /MRAMEN   /IORAMEN  /PCG15EN  GND
+;11       12        13        14        15        16        17        18        19        20
+/WR       /RAMCS    /MREQOUT  /RDOUT    /RAMWE    /RAMOE    /RD       /WROUT    RAMA14    VCC
+
+;
+;INPUTs
+; /MREQ, /RFSH, A15-12, /BUSACK: From Z-80
+; MRAMEN  : $0000-$0FFF をRAMにするならActive
+; IORAMEN : $D000-$FFFF をRAMにするならActive
+; PCG15EN: (IN) : MZ-1500仕様PCGバンクが有効となっている事を示す
+
+;
+;OUTPUTs
+; /MREQOUT: MROM,DRAM,/I/OをRAMに置き換えた際はマザーボード側のRAM, I/Oを使わせないためにアサートしないために、マザー側へ出力する/MREQ
+; /RAMCS:   RAMの/CSへ
+; /RAMOE:   RAMの/OEへ
+; /RDOUT:   マザーの/RDへ。これをアサートしないときはD0-D7のバスバッファのLS245がCPU⇒周辺の方向へ向く
+; /WROUT:   マザーの/WRへ
+; RAMA14:   RAMのA14へ
+
+; RAMCS: RFSH 中ではなくて MREQ で $0xxx, $Dxxx, $Exxx, $Fxxx
+RAMCS = /RFSH * MREQ * /A15 * /A14 * /A13 * /A12 \			// $0xxx の書き込みは裏RAMに書き込まれるようにする
+      + /RFSH * MREQ *  A15 *  A14 * /A13 *  A12 * /PCG15EN \		// $Dxxx の書き込みはPCG15ENでないとき裏RAMに書き込まれるようにする
+      + /RFSH * MREQ *  A15 *  A14 *  A13 * /A12 * IORAMEN * /PCG15EN \	// $Exxx
+      + /RFSH * MREQ *  A15 *  A14 *  A13 *  A12 * IORAMEN * /PCG15EN \	// $Fxxx
+
+MREQOUT =  RFSH * MREQ \						// リフレッシュサイクル中のMREQは出す
+        + MREQ * /A15 * /A14 * /A13 * /A12 * /MRAMEN \			// $0xxx かつ MRAM がInactive
+        + MREQ * /A15 * /A14 * /A13 *  A12 \				// $1xxx
+        + MREQ * /A15 * /A14 *  A13 \					// $2xxx-$3xxx
+        + MREQ * /A15 *  A14 \						// $4xxx-$7xxx
+        + MREQ *  A15 * /A14 \						// $8xxx-$Bxxx
+        + MREQ *  A15 *  A14 * /A13 * /A12 \				// $Cxxx
+        + MREQ *  A15 *  A14 * /IORAMEN \				// $Cxxx-$Fxxx かつ IORAM がInactive
+
+; RAMOE: MRAMENの時の$0xxxの読み出しと, IORAMENの時の $Exxx, $FFFF の読み出し、$Dxxx は常にSRAMから
+RAMOE = RD * MREQ * /A15 * /A14 * /A13 * /A12 * MRAMEN \		// $0xxx
+      + RD * MREQ *  A15 *  A14 * /A13 *  A12 \				// $Dxxx
+      + RD * MREQ *  A15 *  A14 *  A13 * /A12 * IORAMEN \		// $Exxx
+      + RD * MREQ *  A15 *  A14 *  A13 *  A12 * IORAMEN			// $Fxxx
+
+; RAMWE: $0xxxへの書き込みと, IORAMENの時の $Dxxx, $Exxx, $FFFF への書き込み
+; ⇒常に出して良い
+;RAMWE = WR * MREQ * /A15 * /A14 * /A13 * /A12 \			// $0xxx
+;      + WR * MREQ *  A15 *  A14 * /A13 *  A12 \			// $Dxxx
+;      + WR * MREQ *  A15 *  A14 *  A13 * /A12 * IORAMEN \		// $Exxx
+;      + WR * MREQ *  A15 *  A14 *  A13 *  A12 * IORAMEN		// $Fxxx
+RAMWE = WR * MREQ
+
+; RDOUT
+/RDOUT = /RD \
+       + RD * MREQ * /A15 * /A14 * /A13 * /A12 * MRAMEN \		// $0xxx from RAM
+       + RD * MREQ *  A15 *  A14 * /A13 *  A12 \			// シャドウRAM化のため $Dxxx は IORAM によらず本体側へRD出さない
+       + RD * MREQ *  A15 *  A14 *  A13 * /A12 * IORAMEN \		// $Exxx from RAM
+       + RD * MREQ *  A15 *  A14 *  A13 *  A12 * IORAMEN		// $Fxxx from RAM
+
+; WROUT
+/WROUT = /WR \
+       + WR * MREQ * /A15 * /A14 * /A13 * /A12 * MRAMEN \		// $0xxx to RAM
+       + WR * MREQ *  A15 *  A14 * /A13 *  A12 * IORAMEN \		// $Dxxx to RAM
+       + WR * MREQ *  A15 *  A14 *  A13 * /A12 * IORAMEN \		// $Exxx to RAM
+       + WR * MREQ *  A15 *  A14 *  A13 *  A12 * IORAMEN		// $Fxxx to RAM
+
+RAMA14 = A14 * IORAMEN							// If I/O RAM enabled A14, else 0
+
+DESCRIPTION
+    MZ700コンパチのBANK RAMのコントロール
+    VRAMからのプログラムフェッチが間に合わないので、VRAMをWOMとしてSHADOW RAMから読み出す版
+    VRAMリードをノーウェイトで高速化できる。遅いV-RAMでもフェッチOKとなる。
+
+    SRAM 61256 のアドレス線について
+    		       (A15)A14 A13 A12 : RAM ADDR
+    $0000-$0FFF		 0   0   0   0  : $0000
+    $D000-$DFFF	(SHADOW) 1   0   0   1  : $1000
+    $D000-$DFFF (BANK)	 1   1   0   1  : $5000
+    $E000-$DFFF		 1   1   1   0  : $6000
+    $F000-$DFFF		 1   1   1   1  : $7000
+
+    61256 は A0-A14 まである。
+    上記、A14-A12 までの組み合わせにダブりはないので、A14以外そのままZ80->61256に繋いでしまってもOK。

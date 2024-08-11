@@ -1,0 +1,34 @@
+#!/bin/bash
+
+ITNR="[31;1m"
+ITNG="[32;1m"
+ITNY="[33;1m"
+ITNB="[34;1m"
+ITNM="[35;1m"
+ITNC="[36;1m"
+ITNW="[37;1m"
+ITN="${ITNY}"
+NOR="[0m"
+
+ROMSIZE=2048
+PADDING="\377"  # $FF
+
+# Catch errors and display the offending line number:
+set -e
+trap 'echo "${ITNR}$0 FAILED at line ${LINENO}${NOR}"' ERR
+
+cd $(dirname $0) ; CWD=$(pwd)
+
+find . -iname "*.BAK" -delete
+
+# build
+for i in *.ASM; do
+  echo "Building: $i"
+  OUT=$(asm2bin "`pwd`/$i" | sed -e '2!d')
+  if [ -e asm.log ]; then
+    exit 1
+  fi
+  # cp -av $OUT ../SD/
+done
+
+ls -al *.bin

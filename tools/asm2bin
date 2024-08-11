@@ -1,0 +1,68 @@
+#!/bin/bash
+
+ITNR="[31;1m"
+ITNG="[32;1m"
+ITNY="[33;1m"
+ITNB="[34;1m"
+ITNM="[35;1m"
+ITNC="[36;1m"
+ITNW="[37;1m"
+ITN="${ITNY}"
+NOR="[0m"
+
+ZASM=/opt/z80/bin/zasm
+
+# Catch errors and display the offending line number:
+set -e
+trap 'echo "${ITNR}$0 FAILED at line ${LINENO}${NOR}"' ERR
+
+#cd $(dirname $0) ; CWD=$(pwd)
+
+if [ "$1" = "" ]; then
+  cat 1>&2 <<EOF
+
+Usage: $0 filename[.ASM]
+
+EOF
+  exit 1
+fi
+
+rm -vf *.BAK *.bak
+for f in "$@"; do
+  echo "Processing: '$f'"
+  p="$(dirname "$f")"
+  b="$(basename "$f" .ASM)"
+  MZN="$(echo "$b" | tr '[:lower:]' '[:upper:]')"
+  OUT="$MZN.mzt"
+  echo "$OUT"
+  HDN="$(echo -n "$MZN$(dd if=/dev/zero bs=1 count=17 2> /dev/null | tr '\000' '\015')" | dd bs=1 count=17 2> /dev/null)"
+
+  if [ ! -e "$p/$b.ASM" ]; then
+    echo "File not found: $p/$b.ASM"
+    exit 1
+  fi
+  pushd "$p" >& /dev/null
+
+  # pre-process
+  chmod 644 "$b.ASM"
+  rmxattr.sh "$b.ASM"
+  sed -re 's/^dbg\(([0-9]+)\)//g' "$b.ASM" | sed -re 's/\$([A-F][0-9A-F]*)/0\1H/ig; s/\$([0-9A-F]+)/\1H/ig' | lv -Iu -Os | sed -e 's/$/\r/g' > "$b.s"
+
+  # build
+  find . -iname "$b.bin" -delete
+  find . -iname "$b.prn" -delete
+  find . -iname "$b.hex" -delete
+  $ZASM "-C$b.bin" "-L$b.PRN" -Z "$b.s" 2>&1 | lv -Is -Ou > asm.log
+  find . -name  "$b.BIN" -exec mv -f "{}" "$b.bin" \;
+  find . -iname "$b.prn" -exec mv -f "{}" "$b.PRN" \;
+  lv -Is -Ou "$b.PRN" > "$b.PRNu"
+  mv -f "$b.PRNu" "$b.PRN"
+  if ! grep -qFe '  0 warning(s),   0 error(s) in assembly.' asm.log; then
+    cat asm.log 1>&2
+    echo "${ITNY}$b.s: Assemble error !$NOR" 1>&2
+    exit 1
+  fi
+  rm -f asm.log "$b.s"
+
+  popd >& /dev/null
+done

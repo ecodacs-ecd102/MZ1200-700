@@ -1,0 +1,29 @@
+
+
+                                GAL22V10
+
+                          -------\___/-------
+                   /PCGON |  1           24 | VCC
+                          |                 |
+                     /SEL |  2           23 | MZ256
+                          |                 |
+                     SEL1 |  3           22 | RAMPA10
+                          |                 |
+                    /SEL2 |  4           21 | /ROMOE
+                          |                 |
+                   /SEL2W |  5           20 | /RAMWR
+                          |                 |
+                     COPY |  6           19 | /RAMWL
+                          |                 |
+                      VA9 |  7           18 | /RAMOE
+                          |                 |
+                     VA10 |  8           17 | SEL3
+                          |                 |
+                     VA11 |  9           16 | RAMA10b
+                          |                 |
+                     PA10 | 10           15 | RAMA10a
+                          |                 |
+               PCGOFFPA11 | 11           14 | /P128M256
+                          |                 |
+                      GND | 12           13 | /PET
+                          -------------------

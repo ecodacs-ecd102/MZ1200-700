@@ -1,0 +1,657 @@
+			  Z80 ASSEMBLER - ZASM VER 1.6
+  0006                	LETLN		EQU		0006H			;S-BASIC
+  0012                	PRNT		EQU		0012H
+  000C                	PRNTS		EQU		000CH
+  0015                	MSGPR		EQU		0015H
+  001B                	GETKEY		EQU		001BH
+                      	
+  0054                	DSPX		EQU		0054H
+                      	
+  0FFC                	IBUFE		EQU		0FFCH			;EU-BASIC/COMP
+  0FFD                	FNAME		EQU		IBUFE+1
+  100E                	FSIZE		EQU		IBUFE+18
+  1010                	SADRS		EQU		IBUFE+18+2
+  1012                	EADRS		EQU		IBUFE+18+4
+  110F                	LBUF		EQU		110FH
+                      	
+  0012                	UP_KEY		EQU		12H			;カーソル↑ S-BASIC
+                      	
+  0021                			ORG		0021H			;S-BASIC
+  0021  C3270B        	WRINF:		JP		MSHED
+  0024  C3560B        	WRDAT:		JP		MSDAT
+  0027  C37E0B        	RDINF:		JP		MLHED
+  002A  C3DD0C        	RDDAT:		JP		MLDAT
+  002D  C3120D        	VERFY:		JP		MVRFY
+                      	
+  0A3B                			ORG		0A3BH			;EU S-BASIC
+                      	
+                      	;**** 文字種初期化 ****
+  0A3B                	INITCHR:
+  0A3B  F5            			PUSH		AF
+  0A3C  D5            			PUSH		DE
+                      	
+  0A3D  118C0A        			LD		DE,MSG_INITCHR
+  0A40  CD1500        			CALL		MSGPR
+                      	
+  0A43  D1            			POP		DE
+  0A44  F1            			POP		AF
+  0A45  C9            			RET
+                      	
+                      	;**** 1行クリア ****
+  0A46                	CLRLINE:
+  0A46  C5            			PUSH		BC
+  0A47  D5            			PUSH		DE
+  0A48  4F            			LD		C,A
+  0A49  3E03          			LD		A,3			;一行分をクリアするため3文字削除、37文字出力
+  0A4B  325400        			LD		(DSPX),A
+  0A4E  11900A        			LD		DE,MSG_CLRL
+  0A51  CD1500        			CALL		MSGPR
+  0A54  0625          			LD		B,37
+  0A56                	CL10:
+  0A56  CD0C00        			CALL		PRNTS
+  0A59  10FB          			DJNZ		CL10
+  0A5B  AF            			XOR		A
+  0A5C  325400        			LD		(DSPX),A
+  0A5F  79            			LD		A,C
+  0A60  D1            			POP		DE
+  0A61  C1            			POP		BC
+  0A62  C9            			RET
+                      	
+                      	;*** ファイル名Trimしながらファイル名16文字+0DHを送信 ***
+                      	;IN:
+                      	;  HL: ファイル名PTR
+                      	;   B: 長さ(16 or 14)
+                      	;OUT:
+                      	;  HL: +B+1される。
+                      	;
+  0A63                	SNDFN:
+  0A63  C5            			PUSH		BC
+  0A64  D5            			PUSH		DE
+  0A65  50            			LD		D,B		;送信すべきバイト数の保存
+                      	
+  0A66  0E00          			LD		C,0		;送信したバイト数
+  0A68                	SNDFN_LOOP1:
+  0A68  CDFE0A        			CALL		IS_LAST
+  0A6B  2810          			JR		Z,SNDFN_LAST
+  0A6D  79            			LD		A,C
+  0A6E  B7            			OR		A		;1バイトでも送信していれば前Trim済み
+  0A6F  7E            			LD		A,(HL)
+  0A70  2004          			JR		NZ,SNDFN_SEND	;前Trim済みなら無条件で送信
+  0A72  FE20          			CP		' '
+  0A74  2804          			JR		Z,SNDFN_SKIP
+  0A76                	SNDFN_SEND:
+  0A76  CDC70A        			CALL		SNDBYTE
+  0A79  0C            			INC		C		;送信したバイト数++
+  0A7A                	SNDFN_SKIP:
+  0A7A  23            			INC		HL
+  0A7B  10EB          			DJNZ		SNDFN_LOOP1
+  0A7D                	SNDFN_LAST:
+  0A7D  7A            			LD		A,D		;スキップしたバイト数=(送信すべきバイト数-送信したバイト数)
+  0A7E  91            			SUB		C
+  0A7F  47            			LD		B,A
+  0A80  04            			INC		B		;エンドマークの0DHのぶん
+  0A81                	SNDFN_LOOP2:
+  0A81  3E0D          			LD		A,0DH
+  0A83  CDC70A        			CALL		SNDBYTE
+  0A86  23            			INC		HL
+  0A87  10F8          			DJNZ		SNDFN_LOOP2
+                      	
+  0A89  D1            			POP		DE
+  0A8A  C1            			POP		BC
+  0A8B  C9            			RET
+                      	
+  0A8C  19060D00      	MSG_INITCHR:	DB		19H,06H,0DH,0		;英数、大文字、CR
+  0A90  10101000      	MSG_CLRL:	DB		10H,10H,10H,0		;[DEL]x3
+  0A94  4E2F422F55502F	MSG_KEY:	DB		"N/B/UP/SH+BRK",0DH,00H
+  0AA3  4C4F41442200  	MSG_LOAD:	DB		"LOAD",22H,00H
+                      	
+                      	;**** 共通部 ****
+  0AA9                			CHAIN "COMMON.s"
+                      	;
+                      	; 共通部
+                      	;
+                      	
+                      	;0D8H PORTA 送信データ(下位4ビット)
+                      	;0D9H PORTB 受信データ(8ビット)
+                      	;
+                      	;0DAH PORTC Bit
+                      	;7 IN  CHK
+                      	;6 IN
+                      	;5 IN
+                      	;4 IN 
+                      	;3 OUT
+                      	;2 OUT FLG
+                      	;1 OUT
+                      	;0 OUT
+                      	;
+                      	;0DBH コントロールレジスタ
+                      	
+                      	;**** 8255初期化 ****
+                      	;PORTC下位BITをOUTPUT、上位BITをINPUT、PORTBをINPUT、PORTAをOUTPUT
+  0AA9                	INIT:
+  0AA9  3E8A          			LD		A,8AH
+  0AAB  D3DB          			OUT		(0DBH),A
+                      	;出力BITをリセット
+  0AAD                	INIT2:
+  0AAD  3E00          			LD		A,00H			;PORTA <- 0
+  0AAF  D3D8          			OUT		(0D8H),A
+  0AB1  D3DA          			OUT		(0DAH),A		;PORTC <- 0
+  0AB3  C9            			RET
+                      	
+                      	;**** 1BYTE受信 ****
+                      	;受信DATAをAレジスタにセットしてリターン
+  0AB4                	RCVBYTE:
+  0AB4  CDE90A        			CALL		F1CHK			;PORTC BIT7が1になるまでLOOP
+  0AB7  3E05          			LD		A,05H
+  0AB9  D3DB          			OUT		(0DBH),A		;PORTC BIT2 <- 1
+  0ABB  DBD9          			IN		A,(0D9h)		;PORTB -> A
+  0ABD  F5            			PUSH 		AF
+  0ABE  CDF00A        			CALL		F2CHK			;PORTC BIT7が0になるまでLOOP
+  0AC1  3E04          			LD		A,04H
+  0AC3  D3DB          			OUT		(0DBH),A		;PORTC BIT2 <- 0
+  0AC5  F1            			POP		AF
+  0AC6  C9            			RET
+                      	
+                      	;**** 1BYTE送信 ****
+                      	;Aレジスタの内容をPORTA下位4BITに4BITずつ送信
+  0AC7                	SNDBYTE:
+  0AC7  F5            			PUSH		AF
+  0AC8  1F            			RRA
+  0AC9  1F            			RRA
+  0ACA  1F            			RRA
+  0ACB  1F            			RRA
+  0ACC  E60F          			AND		0FH
+  0ACE  CDD80A        			CALL		SND4BIT
+  0AD1  F1            			POP		AF
+  0AD2  E60F          			AND		0FH
+  0AD4  CDD80A        			CALL		SND4BIT
+  0AD7  C9            			RET
+                      	
+                      	;**** 4BIT送信 ****
+                      	;Aレジスタ下位4ビットを送信する
+  0AD8                	SND4BIT:
+  0AD8  D3D8          			OUT		(0D8H),A
+  0ADA  3E05          			LD		A,05H
+  0ADC  D3DB          			OUT		(0DBH),A		;PORTC BIT2 <- 1
+  0ADE  CDE90A        			CALL		F1CHK			;PORTC BIT7が1になるまでLOOP
+  0AE1  3E04          			LD		A,04H
+  0AE3  D3DB          			OUT		(0DBH),A		;PORTC BIT2 <- 0
+  0AE5  CDF00A        			CALL		F2CHK
+  0AE8  C9            			RET
+                      	
+                      	;**** BUSYをCHECK(1) ****
+                      	; 82H BIT7が1になるまでLOP
+  0AE9                	F1CHK:
+  0AE9  DBDA          			IN		A,(0DAH)
+  0AEB  E680          			AND		80H			;PORTC BIT7 = 1?
+  0AED  28FA          			JR		Z,F1CHK
+  0AEF  C9            			RET
+                      	
+                      	;**** BUSYをCHECK(0) ****
+                      	; 82H BIT7が0になるまでLOOP
+  0AF0  DBDA          	F2CHK:		IN		A,(0DAH)
+  0AF2  E680          			AND		80H			;PORTC BIT7 = 0?
+  0AF4  20FA          			JR		NZ,F2CHK
+  0AF6  C9            			RET
+                      	
+                      	;*** BC==128? ***
+                      	; Z: yes
+                      	;NZ: no
+  0AF7                	IS_BC_128:
+  0AF7  78            			LD		A,B
+  0AF8  B7            			OR		A
+  0AF9  C0            			RET		NZ
+  0AFA  79            			LD		A,C
+  0AFB  FE80          			CP		128
+  0AFD  C9            			RET
+                      	
+                      	;*** ファイル名後ろTrim用 ***
+                      	;IN:
+                      	;  HL: ファイル名PTR
+                      	;   B: 残り文字数
+                      	;OUT:
+                      	;  Z: 最後((HL)が後ろに何も無い" "または0DH)
+                      	; NZ: 最後ではない
+  0AFE                	IS_LAST:
+  0AFE  E5            			PUSH		HL
+  0AFF  C5            			PUSH		BC
+  0B00                	IS_LAST_10:
+  0B00  7E            			LD		A,(HL)
+  0B01  FE0D          			CP		0DH
+  0B03  2810          			JR		Z,IS_LAST_30		; ZF,RET
+  0B05  FE05          			CP		05H
+  0B07  2808          			JR		Z,IS_LAST_20		; look next
+  0B09  FE06          			CP		06H
+  0B0B  2804          			JR		Z,IS_LAST_20		; look next
+  0B0D  FE20          			CP		' '			; Other than SP ?
+  0B0F  2004          			JR		NZ,IS_LAST_30		; NZ,RET
+  0B11                	IS_LAST_20:
+  0B11  23            			INC		HL
+  0B12  05            			DEC		B			; Need ZF, do not use DJNZ
+  0B13  20EB          			JR		NZ,IS_LAST_10
+  0B15                	IS_LAST_30:
+  0B15  C1            			POP		BC
+  0B16  E1            			POP		HL
+  0B17  C9            			RET
+                      	
+                      	;**** LBUFをきれいにする ****
+                      	;LBUFを0DHで埋めファイルネームが指定されなかったことにする
+  0B18                	CLRLBUF:
+  0B18  C5            			PUSH		BC
+  0B19  E5            			PUSH		HL
+                      	
+  0B1A  0650          			LD		B,80
+  0B1C  210F11        			LD		HL,LBUF
+  0B1F                	CLB10:
+  0B1F  360D          			LD		(HL),0DH
+  0B21  23            			INC		HL
+  0B22  10FB          			DJNZ		CLB10
+                      	
+  0B24  E1            			POP		HL
+  0B25  C1            			POP		BC
+  0B26  C9            			RET
+                      	
+                      	;*********************** 0436H MONITOR ライト インフォメーション代替処理 ************
+                      	;HL: addr
+                      	;BC: size
+  0B27                	MSHED:
+  0B27  F3            			DI
+  0B28  D5            			PUSH		DE
+  0B29  C5            			PUSH		BC
+  0B2A  E5            			PUSH		HL
+                      	
+  0B2B  CDF70A        			CALL		IS_BC_128		;サイズ128バイト以外はエラー
+  0B2E  C2280D        			JP		NZ,MERRD
+                      	
+  0B31  3E91          			LD		A,91H			;HEADER SAVEコマンド91H
+  0B33  CD150D        			CALL		MCMD			;コマンドコード送信
+                      	;;		AND		A			;00以外ならERROR
+  0B36  C2280D        			JP		NZ,MERRD
+                      	
+                      	;インフォメーション ブロック送信
+                      	;;		LD		HL,IBUFE
+                      	;ATTR
+  0B39  7E            			LD		A,(HL)
+  0B3A  CDC70A        			CALL		SNDBYTE
+  0B3D  23            			INC		HL
+                      	;FNAME
+  0B3E  0610          			LD		B,16			;ファイル名16+0DHの17バイト送信
+  0B40  CD630A        			CALL		SNDFN			;Trimして送信, HLを進める
+                      	;OTHERS
+  0B43  066E          			LD		B,128-1-17
+  0B45                	MSH40:
+  0B45  7E            			LD		A,(HL)
+  0B46  CDC70A        			CALL		SNDBYTE
+  0B49  23            			INC		HL
+  0B4A  10F9          			DJNZ		MSH40
+                      	
+  0B4C  CDB40A        			CALL		RCVBYTE			;状態取得(00H=OK)
+  0B4F  A7            			AND		A			;00以外ならERROR
+  0B50  C2280D        			JP		NZ,MERRD
+                      	
+  0B53  C3220D        			JP		MRET			;正常RETURN
+                      	
+                      	;******************** 0475H MONITOR ライト データ代替処理 **********************
+                      	;HL: addr
+                      	;BC: size
+  0B56                	MSDAT:
+  0B56  F3            			DI
+  0B57  D5            			PUSH		DE
+  0B58  C5            			PUSH		BC
+  0B59  E5            			PUSH		HL
+                      	
+  0B5A  3E92          			LD		A,92H			;DATA SAVEコマンド92H
+  0B5C  CD150D        			CALL		MCMD			;コマンドコード送信
+                      	;;		AND		A			;00以外ならERROR
+  0B5F  C2280D        			JP		NZ,MERRD
+                      	
+                      	;FSIZE送信
+  0B62  79            			LD		A,C
+  0B63  CDC70A        			CALL		SNDBYTE
+  0B66  78            			LD		A,B
+  0B67  CDC70A        			CALL		SNDBYTE
+                      	
+  0B6A  CDB40A        			CALL		RCVBYTE			;状態取得(00H=OK)
+  0B6D  A7            			AND		A			;00以外ならERROR
+  0B6E  C2280D        			JP		NZ,MERRD
+                      	;データ送信
+                      	;HL: addr
+                      	;BC: size
+  0B71                	MSD1:
+  0B71  7E            			LD		A,(HL)
+  0B72  CDC70A        			CALL		SNDBYTE			;HLからBC Byteを送信
+  0B75  0B            			DEC		BC
+  0B76  78            			LD		A,B
+  0B77  B1            			OR		C
+  0B78  23            			INC		HL
+  0B79  20F6          			JR		NZ,MSD1			;BC=0までLOOP
+                      	
+  0B7B  C3220D        			JP		MRET			;正常RETURN
+                      	
+                      	;************************** 04D8H MONITOR リード インフォメーション代替処理 *****************
+                      	;HL: addr
+                      	;BC: size
+  0B7E                	MLHED:
+  0B7E  F3            			DI
+  0B7F  D5            			PUSH		DE
+  0B80  C5            			PUSH		BC
+  0B81  E5            			PUSH		HL
+                      	
+  0B82  CDF70A        			CALL		IS_BC_128		;サイズ128バイト以外はエラー
+  0B85  C2280D        			JP		NZ,MERRD
+                      	
+                      	;以下のファイル名を指定した場合、コマンド実行
+                      	;"*L" : DIRLIST
+                      	;"*M" : MKDIR
+                      	;"*C" : CHDIR
+  0B88  21FD0F        			LD		HL,FNAME
+  0B8B  7E            			LD		A,(HL)
+  0B8C  FE2A          			CP		'*'
+  0B8E  C2920C        			JP		NZ,MLH10
+  0B91  23            			INC		HL			;HL=*の次の文字
+  0B92  7E            			LD		A,(HL)
+  0B93  FE4C          			CP		'L'			;*L: DIRLIST
+  0B95  2848          			JR		Z,MLHDIRLIST
+  0B97  FE4D          			CP		'M'			;*M: MKDIR
+  0B99  2809          			JR		Z,MLHMKDIR
+  0B9B  FE43          			CP		'C'			;*C: CHDIR
+  0B9D  C2280D        			JP		NZ,MERRD		;他はエラー
+                      	;**** CHDIR ****
+  0BA0                	MLHCHDIR:
+  0BA0  3EA6          			LD		A,0A6H			;CHDIRコマンドA6H
+  0BA2  1802          			JR		MLHXDIR
+                      	;*** MKDIR ****
+  0BA4                	MLHMKDIR:
+  0BA4  3EA7          			LD		A,0A7H			;MKDIRコマンドA7H
+  0BA6                	MLHXDIR:
+                      	
+                      	;**** CHDIR/MKDIR 本体 ****
+                      	; HL+1～ファイル名
+                      	; A: 0A6H = CHDIRコマンド, 0A7H = MKDIRコマンド
+  0BA6  CD150D        			CALL		MCMD			;コマンドコード送信
+                      	;;		AND		A			;00以外ならERROR
+  0BA9  C2280D        			JP		NZ,MERRD
+                      	
+  0BAC  CD460A        			CALL		CLRLINE
+  0BAF  CD1500        			CALL		MSGPR
+                      	
+                      	;		ディレクトリ名(MAX16-2=14文字)送信
+  0BB2  060E          			LD		B,14
+  0BB4  23            			INC		HL
+  0BB5  CD630A        			CALL		SNDFN			;Trimしながら送信, 14+1バイト送信される
+                      	
+                      	;		ディレクトリ名(全32文字+CR)の残りは0DH送信
+  0BB8  0612          			LD		B,32-15+1
+  0BBA                	MLHXDIR10:
+  0BBA  3E0D          			LD		A,0DH
+  0BBC  CDC70A        			CALL		SNDBYTE
+  0BBF  10F9          			DJNZ		MLHXDIR10
+                      	
+  0BC1  CDB40A        			CALL		RCVBYTE			;状態取得(00H=OK)
+  0BC4  A7            			AND		A
+  0BC5  C2280D        			JP		NZ,MERRD
+                      	
+  0BC8  CD0600        			CALL		LETLN
+                      		;カレントディレクトリを含む文字列受信
+  0BCB                	MLHXDIR20:
+  0BCB  CDB40A        			CALL		RCVBYTE			;'00H'を受信するまで表示
+  0BCE  B7            			OR		A
+  0BCF  2805          			JR		Z,MLHXDIR30
+  0BD1  CD1200        			CALL		PRNT
+  0BD4  18F5          			JR		MLHXDIR20
+  0BD6                	MLHXDIR30:
+  0BD6  CD180B        			CALL		CLRLBUF
+  0BD9  CDB40A        			CALL		RCVBYTE			;Aにエラーコード
+  0BDC  C32C0D        			JP		MERRB			;LOADコマンドとしては中断リターンとなる
+                      	
+                      	;**** DIRLIST本体 ****
+                      	; HL+1～ファイル名
+  0BDF                	MLHDIRLIST:
+  0BDF  3EA3          			LD		A,0A3H			;ディレトリ属性付きDIRLISTコマンド0A3Hを送信
+  0BE1  CD150D        			CALL		MCMD			;コマンドコード送信
+                      	;;		AND		A			;00以外ならERROR
+  0BE4  C2280D        			JP		NZ,MERRD
+                      	
+                      	;		ディレクトリ名(MAX16-2=14文字)送信
+  0BE7  060E          			LD		B,14
+  0BE9  23            			INC		HL
+  0BEA  CD630A        			CALL		SNDFN			;Trimしながら送信, 14+1バイト送信される
+                      	
+                      	;		ディレクトリ名(全32文字+CR)の残りは0DH送信
+  0BED  0612          			LD		B,32-15+1
+  0BEF                	MLHDL10:
+  0BEF  3E0D          			LD		A,0DH
+  0BF1  CDC70A        			CALL		SNDBYTE
+  0BF4  10F9          			DJNZ		MLHDL10
+                      	
+  0BF6  CD3B0A        			CALL		INITCHR			;文字種初期化(英数、大文字)
+                      	
+  0BF9                	MLHDL20:
+  0BF9  CDB40A        			CALL		RCVBYTE			;属性受信 'F' or 'D' または指示(0FFH,0FEH)の受信
+  0BFC  FEFF          			CP		0FFH			;'0FFH'を受信したら終了
+  0BFE  28D6          			JR		Z,MLHXDIR30		;状態取得し中断リターン
+  0C00  FEFE          			CP		0FEH			;'0FEH'を受信したら一時停止して一文字入力待ち
+  0C02  285D          			JR		Z,MLHDL60
+                      		;ファイル名の受信と表示
+  0C04  F5            			PUSH		AF
+  0C05  D5            			PUSH		DE
+  0C06  11A30A        			LD		DE,MSG_LOAD
+  0C09  CD460A        			CALL		CLRLINE
+  0C0C  CD1500        			CALL		MSGPR
+  0C0F  D1            			POP		DE
+  0C10  F1            			POP		AF
+  0C11  FE44          			CP		'D'
+  0C13  200A          			JR		NZ,MLHDL30		;通常ファイルのとき
+                      		;以下ディレクトリのとき
+  0C15  3E2A          			LD		A,"*"
+  0C17  CD1200        			CALL		PRNT
+  0C1A  3E43          			LD		A,"C"
+  0C1C  CD1200        			CALL		PRNT
+  0C1F                	MLHDL30:
+  0C1F  210F11        			LD		HL,LBUF
+  0C22  0E21          			LD		C,33			;32文字+1
+  0C24                	MLHDL40:
+  0C24  CDB40A        			CALL		RCVBYTE			;'00H'を受信するまでを一行とする
+  0C27  0D            			DEC		C
+  0C28  FE0D          			CP		0DH			; 0DHは無視
+  0C2A  28F8          			JR		Z,MLHDL40
+  0C2C  77            			LD		(HL),A
+  0C2D  23            			INC		HL
+  0C2E  B7            			OR		A
+  0C2F  20F3          			JR		NZ,MLHDL40
+                      	;1行エンド
+  0C31  79            			LD		A,C
+  0C32  FE1C          			CP		33-5			;".MZT\0"で5文字
+  0C34  301B          			JR		NC,MLHDL50		;.MZT判別無し
+  0C36  2B            			DEC		HL
+  0C37  2B            			DEC		HL
+  0C38  7E            			LD		A,(HL)
+  0C39  FE54          			CP		"T"
+  0C3B  2014          			JR		NZ,MLHDL50
+  0C3D  2B            			DEC		HL
+  0C3E  7E            			LD		A,(HL)
+  0C3F  FE5A          			CP		"Z"
+  0C41  200E          			JR		NZ,MLHDL50
+  0C43  2B            			DEC		HL
+  0C44  7E            			LD		A,(HL)
+  0C45  FE4D          			CP		"M"
+  0C47  2008          			JR		NZ,MLHDL50
+  0C49  2B            			DEC		HL
+  0C4A  7E            			LD		A,(HL)
+  0C4B  FE2E          			CP		"."
+  0C4D  2002          			JR		NZ,MLHDL50
+  0C4F  3600          			LD		(HL),00H
+  0C51                	MLHDL50:
+  0C51  110F11        			LD		DE,LBUF
+  0C54  CD1500        			CALL		MSGPR
+  0C57  3E22          			LD		A,22H
+  0C59  CD1200        			CALL		PRNT
+  0C5C  CD0600        			CALL		LETLN
+  0C5F  1898          			JR		MLHDL20
+                      	;キー指示待ち
+  0C61                	MLHDL60:
+  0C61  11940A        			LD		DE,MSG_KEY		;HIT KEY表示
+  0C64  CD460A        			CALL		CLRLINE
+  0C67  CD1500        			CALL		MSGPR
+  0C6A                	MLHDL70:
+  0C6A  3E00          			LD		A,0
+  0C6C  CD1B00        			CALL		GETKEY			;1文字入力待ち
+  0C6F  B7            			OR		A
+  0C70  28F8          			JR		Z,MLHDL70
+  0C72  FE03          			CP		03H			;SHIFT+BREAKで打ち切り
+  0C74  280C          			JR		Z,MLHDL80
+  0C76  FE12          			CP		UP_KEY			;カーソル↑で打ち切り
+  0C78  2808          			JR		Z,MLHDL80
+  0C7A  FE42          			CP		42H			;「B」で前ページ
+  0C7C  280B          			JR		Z,MLHDL90
+  0C7E  3E00          			LD		A,00H			;それ以外で継続
+  0C80  1807          			JR		MLHDL90
+  0C82                	MLHDL80:
+  0C82  3E12          			LD		A,UP_KEY		;終わるときのカーソル位置調整。一つ上へ。
+  0C84  CD1200        			CALL		PRNT
+  0C87  3EFF          			LD		A,0FFH			;0FFH中断コードを送信
+  0C89                	MLHDL90:
+  0C89  CDC70A        			CALL		SNDBYTE
+  0C8C  CD0600        			CALL		LETLN
+  0C8F  C3F90B        			JP		MLHDL20			;FF 00 の受信
+                      	
+                      	;-----------------------------
+                      	
+  0C92                	MLH10:
+  0C92  3E93          			LD		A,93H			;HEADER LOADコマンド93H
+  0C94  CD150D        			CALL		MCMD			;コマンドコード送信
+                      	;;		AND		A			;00以外ならERROR
+  0C97  C2280D        			JP		NZ,MERRD
+                      	
+                      	;FNAME送信
+  0C9A  21FD0F        			LD		HL,FNAME
+  0C9D  0610          			LD		B,16
+  0C9F  CD630A        			CALL		SNDFN
+                      	;		残りは0DH送信
+  0CA2  0610          			LD		B,32-17+1
+  0CA4                	MLH20:
+  0CA4  3E0D          			LD		A,0DH
+  0CA6  CDC70A        			CALL		SNDBYTE
+  0CA9  10F9          			DJNZ		MLH20
+                      	
+  0CAB  CDB40A        			CALL		RCVBYTE			;状態取得(00H=OK)
+  0CAE  A7            			AND		A			;00以外ならERROR
+  0CAF  C2280D        			JP		NZ,MERRD
+                      	
+  0CB2  CDB40A        			CALL		RCVBYTE			;状態取得(00H=OK)
+  0CB5  A7            			AND		A			;00以外ならERROR
+  0CB6  C2280D        			JP		NZ,MERRD
+                      	
+  0CB9  E1            			POP		HL			;読み出し先アドレス復帰
+  0CBA  E5            			PUSH		HL
+  0CBB  0680          			LD		B,80H
+  0CBD                	MLH30:
+  0CBD  CDB40A        			CALL		RCVBYTE			;読みだされたインフォメーションブロックを受信
+  0CC0  77            			LD		(HL),A
+  0CC1  23            			INC		HL
+  0CC2  10F9          			DJNZ		MLH30
+                      	
+  0CC4  CDB40A        			CALL		RCVBYTE			;状態取得(00H=OK)
+  0CC7  A7            			AND		A			;00以外ならERROR
+  0CC8  C2280D        			JP		NZ,MERRD
+                      	
+                      	;インフォメーションブロック中のファイル名と同じに書き換える
+  0CCB  21FD0F        			LD		HL,FNAME
+  0CCE  7E            			LD		A,(HL)
+  0CCF  B7            			OR		A
+  0CD0  CA220D        			JP		Z,MRET			;ファイル名無しなら正常RETURN
+  0CD3  D1            			POP		DE			;読み込み先
+  0CD4  D5            			PUSH		DE
+  0CD5  13            			INC		DE			;FNAMEの位置
+  0CD6  011100        			LD		BC,17
+  0CD9  EDB0          			LDIR					;コピーしてしまう
+  0CDB  1845          			JR		MRET			;正常RETURN
+                      	
+                      	;**************************** 04F8H MONITOR リード データ代替処理 ********************
+                      	;HL: addr
+                      	;BC: size
+  0CDD                	MLDAT:
+  0CDD  F3            			DI
+  0CDE  D5            			PUSH		DE
+  0CDF  C5            			PUSH		BC
+  0CE0  E5            			PUSH		HL
+  0CE1  3E94          			LD		A,94H			;DATA LOADコマンド94H
+  0CE3  CD150D        			CALL		MCMD			;コマンドコード送信
+                      	;;		AND		A			;00以外ならERROR
+  0CE6  C2280D        			JP		NZ,MERRD
+                      	
+  0CE9  CDB40A        			CALL		RCVBYTE			;状態取得(00H=OK)
+  0CEC  A7            			AND		A			;00以外ならERROR
+  0CED  C2280D        			JP		NZ,MERRD
+                      	
+  0CF0  CDB40A        			CALL		RCVBYTE			;状態取得(00H=OK)
+  0CF3  A7            			AND		A			;00以外ならERROR
+  0CF4  C2280D        			JP		NZ,MERRD
+                      	
+                      	;FSIZE送信
+  0CF7  79            			LD		A,C
+  0CF8  CDC70A        			CALL		SNDBYTE
+  0CFB  78            			LD		A,B
+  0CFC  CDC70A        			CALL		SNDBYTE
+                      	;データ受信
+                      	;HL: addr
+                      	;BC: size
+  0CFF                	MLD1:
+  0CFF  CDB40A        			CALL		RCVBYTE			;HLからBC Byte受信
+  0D02  77            			LD		(HL),A
+  0D03  0B            			DEC		BC
+  0D04  78            			LD		A,B
+  0D05  B1            			OR		C
+  0D06  23            			INC		HL
+  0D07  20F6          			JR		NZ,MLD1			;BC=0までLOOP
+                      	
+  0D09  CDB40A        			CALL		RCVBYTE			;状態取得(00H=OK)
+  0D0C  A7            			AND		A			;00以外ならERROR
+  0D0D  C2280D        			JP		NZ,MERRD
+                      	
+  0D10  1810          			JR		MRET       		;正常RETURN
+                      	
+                      	
+                      	;************************** 0588H VRFY CMT ベリファイ代替処理 *******************
+  0D12                	MVRFY:
+  0D12  AF            			XOR		A			;正常終了フラグ
+  0D13  FB            			EI
+  0D14  C9            			RET
+                      	
+                      	
+                      	
+                      	;******* 代替処理用コマンドコード送信 (IN:A コマンドコード) **********
+  0D15                	MCMD:
+  0D15  F5            			PUSH		AF
+  0D16  CDA90A        			CALL		INIT
+  0D19  F1            			POP		AF
+  0D1A  CDC70A        			CALL		SNDBYTE			;コマンドコード送信
+  0D1D  CDB40A        			CALL		RCVBYTE			;状態取得(00H=OK)
+  0D20  A7            			AND		A			;バイト数節約のためチェックしてからリターン
+  0D21  C9            			RET
+                      	
+                      	;****** 代替処理用正常RETURN処理 **********
+  0D22                	MRET:
+  0D22  E1            			POP		HL
+  0D23  C1            			POP		BC
+  0D24  D1            			POP		DE
+  0D25  AF            			XOR		A
+  0D26  FB            			EI
+  0D27  C9            			RET
+                      	
+                      	;******* 代替処理用ERROR処理 **************
+  0D28                	MERRD:
+  0D28  3E02          			LD		A,2			;READ/WRITE/DATA ERROR
+  0D2A  1801          			JR		MERRC
+  0D2C                	MERRB:
+  0D2C  AF            			XOR		A			;BREAK
+  0D2D                	MERRC:
+  0D2D  E1            			POP		HL
+  0D2E  C1            			POP		BC
+  0D2F  D1            			POP		DE
+  0D30  37            			SCF
+  0D31  FB            			EI
+  0D32  C9            			RET
+                      	
+  0D33                			END
+

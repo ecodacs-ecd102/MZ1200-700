@@ -1,0 +1,6 @@
+MZ-700用NEW MONITORの"&"コマンド(BASICをROMから高速起動)を止めて"F"コマンドを復活させるパッチ
+Left :700-NEWMON-orig.bin
+Right:700-NEWMON-F.bin
+000000B2 26 46
+000000B4 0E 79
+000000B5 0E 01

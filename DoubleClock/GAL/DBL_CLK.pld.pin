@@ -1,0 +1,25 @@
+
+
+ Pin # | Name     | Pin Type
+-----------------------------
+   1   | CLK      | Clock
+   2   | NC       | Input
+   3   | /CLK2M   | Input
+   4   | NC       | Input
+   5   | CLK4M    | Input
+   6   | NC       | Input
+   7   | /M1      | Input
+   8   | NC       | Input
+   9   | CLKSEL   | Input
+  10   | GND      | GND
+  11   | /OE      | /OE
+  12   | SYNCSEL  | Output
+  13   | CK4M3    | Output
+  14   | CK4M4    | Output
+  15   | /RAMCLK  | Output
+  16   | CPUCLK   | Output
+  17   | CK4M2    | Output
+  18   | CK4M1    | Output
+  19   | TRIG     | Output
+  20   | VCC      | VCC
+

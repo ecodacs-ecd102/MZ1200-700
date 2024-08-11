@@ -1,0 +1,29 @@
+
+
+                                GAL22V10
+
+                          -------\___/-------
+                    /IORQ |  1           24 | VCC
+                          |                 |
+                      /WR |  2           23 | IORAMEN0
+                          |                 |
+                       A7 |  3           22 | NC
+                          |                 |
+                       A6 |  4           21 | NC
+                          |                 |
+                       A5 |  5           20 | /PCG15EN
+                          |                 |
+                       A4 |  6           19 | /PCG15CLR
+                          |                 |
+                       A3 |  7           18 | PCG15LCH
+                          |                 |
+                       A2 |  8           17 | /IORAMEN
+                          |                 |
+                       A1 |  9           16 | IORAMCLR
+                          |                 |
+                       A0 | 10           15 | /MRAMEN
+                          |                 |
+                   /RESET | 11           14 | MRAMCLR
+                          |                 |
+                      GND | 12           13 | NC
+                          -------------------

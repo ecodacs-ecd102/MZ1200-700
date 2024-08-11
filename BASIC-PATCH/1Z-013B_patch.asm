@@ -1,0 +1,110 @@
+LETLN		EQU		0006H			;S-BASIC
+PRNT		EQU		0012H
+PRNTS		EQU		000CH
+MSGPR		EQU		0015H
+GETKEY		EQU		001BH
+
+DSPX		EQU		0054H
+
+IBUFE		EQU		0FFCH			;EU-BASIC
+FNAME		EQU		IBUFE+1
+FSIZE		EQU		IBUFE+18
+SADRS		EQU		IBUFE+18+2
+EADRS		EQU		IBUFE+18+4
+LBUF		EQU		110FH
+
+UP_KEY		EQU		12H			;カーソル↑ S-BASIC
+
+		ORG		0021H			;S-BASIC
+WRINF:		JP		MSHED
+WRDAT:		JP		MSDAT
+RDINF:		JP		MLHED
+RDDAT:		JP		MLDAT
+VERFY:		JP		MVRFY
+
+		ORG		0A3BH			;EU S-BASIC
+
+;**** 文字種初期化 ****
+INITCHR:
+		PUSH		AF
+		PUSH		DE
+
+		LD		DE,MSG_INITCHR
+		CALL		MSGPR
+
+		POP		DE
+		POP		AF
+		RET
+
+;**** 1行クリア ****
+CLRLINE:
+		PUSH		BC
+		PUSH		DE
+		LD		C,A
+		LD		A,3			;一行分をクリアするため3文字削除、37文字出力
+		LD		(DSPX),A
+		LD		DE,MSG_CLRL
+		CALL		MSGPR
+		LD		B,37
+CL10:
+		CALL		PRNTS
+		DJNZ		CL10
+		XOR		A
+		LD		(DSPX),A
+		LD		A,C
+		POP		DE
+		POP		BC
+		RET
+
+;*** ファイル名Trimしながらファイル名16文字+0DHを送信 ***
+;IN:
+;  HL: ファイル名PTR
+;   B: 長さ(16 or 14)
+;OUT:
+;  HL: +B+1される。
+;
+SNDFN:
+		PUSH		BC
+		PUSH		DE
+		LD		D,B		;送信すべきバイト数の保存
+
+		LD		C,0		;送信したバイト数
+SNDFN_LOOP1:
+		CALL		IS_LAST
+		JR		Z,SNDFN_LAST
+		LD		A,C
+		OR		A		;1バイトでも送信していれば前Trim済み
+		LD		A,(HL)
+		JR		NZ,SNDFN_SEND	;前Trim済みなら無条件で送信
+		CP		' '
+		JR		Z,SNDFN_SKIP
+SNDFN_SEND:
+		CALL		SNDBYTE
+		INC		C		;送信したバイト数++
+SNDFN_SKIP:
+		INC		HL
+		DJNZ		SNDFN_LOOP1
+SNDFN_LAST:
+		LD		A,D		;スキップしたバイト数=(送信すべきバイト数-送信したバイト数)
+		SUB		C
+		LD		B,A
+		INC		B		;エンドマークの0DHのぶん
+SNDFN_LOOP2:
+		LD		A,0DH
+		CALL		SNDBYTE
+		INC		HL
+		DJNZ		SNDFN_LOOP2
+
+		POP		DE
+		POP		BC
+		RET
+
+MSG_INITCHR:	DB		19H,06H,0DH,0		;英数、大文字、CR
+MSG_CLRL:	DB		10H,10H,10H,0		;[DEL]x3
+MSG_KEY:	DB		"N/B/UP/SH+BRK",0DH,00H
+MSG_LOAD:	DB		"LOAD",22H,00H
+
+;**** 共通部 ****
+		CHAIN "COMMON.s"
+
+		END

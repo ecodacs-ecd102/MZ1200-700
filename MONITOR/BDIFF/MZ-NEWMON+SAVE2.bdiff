@@ -1,0 +1,4 @@
+MZ-80K用NEW MONITORのデフォルトのカセット書込回数(1回)を2回にするパッチ
+Left :MZ-NEWMON.orig.bin
+Right:MZ-NEWMON+SAVE2.bin
+00000AC4 57 5D

@@ -1,0 +1,9 @@
+﻿Designator,Footprint,Quantity,Value,LCSC Part #
+"C1, C2, C3, C4",LargePad_R_Axial_DIN0204_L3.6mm_D1.6mm_P2.54mm_Vertical,4,0.1,
+J1,DIP-40_W15.24mm_Socket_LongPads,1,Z80CPU-Socket,
+J2,PinHeader_1x03_P2.54mm_Vertical,1,To MZ1500PCG,
+J3,PinHeader_1x01_P2.54mm_Vertical,1,To PCG Decoder,
+U1,DIP-40_W15.24mm_Socket_LongPads,1,Z80CPU,
+U2,DIP-28_W15.24mm_Socket_LongPads,1,61256 SRAM,
+U3,DIP-20_W7.62mm_Socket_LongPads,1,GAL16V8,
+U4,DIP-24_W7.62mm_Socket_LongPads,1,GAL22V10,

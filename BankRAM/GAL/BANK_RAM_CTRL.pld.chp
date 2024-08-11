@@ -1,0 +1,25 @@
+
+
+                                GAL16V8
+
+                          -------\___/-------
+                    /MREQ |  1           20 | VCC
+                          |                 |
+                    /RFSH |  2           19 | RAMA14
+                          |                 |
+                      A15 |  3           18 | /WROUT
+                          |                 |
+                      A14 |  4           17 | /RD
+                          |                 |
+                      A13 |  5           16 | /RAMOE
+                          |                 |
+                      A12 |  6           15 | /RAMWE
+                          |                 |
+                  /MRAMEN |  7           14 | /RDOUT
+                          |                 |
+                 /IORAMEN |  8           13 | /MREQOUT
+                          |                 |
+                 /PCG15EN |  9           12 | /RAMCS
+                          |                 |
+                      GND | 10           11 | /WR
+                          -------------------

@@ -1,0 +1,3 @@
+#!/bin/bash
+/opt/z80/bin/emu2 /opt/z80/bin/dos/zasm.exe $@
+exit $?

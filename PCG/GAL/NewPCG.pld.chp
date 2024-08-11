@@ -1,0 +1,29 @@
+
+
+                                GAL22V10
+
+                          -------\___/-------
+                    PCGON |  1           24 | VCC
+                          |                 |
+                     /SEL |  2           23 | /PDEN
+                          |                 |
+                     SEL1 |  3           22 | /ROMASP
+                          |                 |
+                    /SEL2 |  4           21 | /ROMASV
+                          |                 |
+                   /SEL2W |  5           20 | /RAMASP
+                          |                 |
+                     COPY |  6           19 | /RAMASV
+                          |                 |
+               PCGOFFPA11 |  7           18 | /ROMOE
+                          |                 |
+                    PCGEN |  8           17 | /RAMWE
+                          |                 |
+                      VA9 |  9           16 | /RAMGATE
+                          |                 |
+                     VA10 | 10           15 | /RAMDIR
+                          |                 |
+                     /PET | 11           14 | SEL3
+                          |                 |
+                      GND | 12           13 | /PET128EN
+                          -------------------

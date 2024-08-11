@@ -1,0 +1,696 @@
+			  Z80 ASSEMBLER - ZASM VER 1.6
+                      	; =====================================================================================
+                      	;   MZ-1R12 モドキ
+                      	;   
+                      	; =====================================================================================
+                      	
+  0006                	LETNL		EQU		0006H
+  0009                	QNL		EQU		0009H		; [kaokun]: Use entry
+  0012                	PRNT		EQU		0012H
+  0015                	MSG		EQU		0015H
+  001B                	GETKY		EQU		001BH
+  0027                	RDINF		EQU		0027H
+  002A                	RDDAT		EQU		002AH
+                      	
+                      	;[kaokun]
+  0033                	TIMST		EQU		0033H		; Set TIME: A:0=AM, 1=PM; DE=seconds
+  0041                	XTEMP		EQU		0041H		; Tempo set: default: AL=4
+  0047                	MSTP		EQU		0047H		; Stop Melody
+                      	
+  10F1                	NAME		EQU		10F1H
+  1102                	SIZE		EQU		1102H
+  1104                	DTADR		EQU		1104H
+  1108                	COMNT		EQU		1108H
+                      	
+  11A3                	LBUF		EQU		11A3H
+                      	
+  10F0                	SP_BOTTOM	EQU		10F0H
+  0082                	MONITOR_80K	EQU		0082H
+  00AD                	MONITOR_700	EQU		00ADH
+  0082                	MONITOR_NEWMON	EQU		0082H			;with stack init
+  0082                	MONITOR_NEWMON7	EQU		0082H
+  0095                	MONITOR_80A	EQU		0095H
+                      	
+                      	; MZ80K-SD/kao Specific work
+  11FF                	CONTF		EQU		11FFH			; for FD: command
+  003A                	CONTF_ON	EQU		':'			; ':' なら連続ロード中を示す
+                      	
+                      	; Tape
+  001E                	BRKEY		EQU		001EH
+  E002                	CSTR		EQU		0E002H
+  E003                	CSTPT		EQU		0E003H
+                      	
+                      	
+  E800                			ORG	0E800H
+                      	
+                      	
+                      	; =====================================================================================
+                      	;   拡張ROMエントリ
+                      	; =====================================================================================
+  E800                	MZ1R12:
+  E800  00            			NOP				; ROM Exists
+                      	;[kaokun]: ボードが無いときと、"*B" コマンド実行時の副作用で来たときはコマンドラインに戻る
+  E801  AF            			XOR	A
+                      	
+  E802  F3            			DI				; スタックなど念のためイニシャライズ
+  E803  31F010        			LD	SP,SP_BOTTOM
+  E806  32FF11        			LD	(CONTF),A		; MZ-80K SDのスペシャルバージョンの連続ロードフラグを念のためクリアする
+  E809  CDABEB        			CALL	CHK_BOARD		; ボード存在チェック
+  E80C  DA5AEC        			JP	C,MON2			; ボード無し
+                      	
+  E80F  3AA311        			LD	A,(LBUF)
+  E812  FE2A          			CP	'*'			;ラインバッファが"*B"か?
+  E814  2010          			JR	NZ,MZ1R12_START
+  E816  3AA411        			LD	A,(LBUF+1)
+  E819  FE42          			CP	'B'
+  E81B  2009          			JR	NZ,MZ1R12_START
+                      	
+                      	;*Bだったので何もせずコマンド待ちへ
+  E81D  210000        			LD	HL,0			; ここでリセットしたときに次回起動するように潰しておく
+  E820  22A311        			LD	(LBUF),HL
+  E823  C35AEC        			JP	MON2
+                      	
+                      	; =====================================================================================
+                      	;   メニュー表示
+                      	; =====================================================================================
+  E826                	MZ1R12_START:
+  E826  3E16          			LD	A,16H
+  E828  CD1200        			CALL	PRNT
+  E82B  CD0600        			CALL	LETNL
+  E82E  CD0600        			CALL	LETNL
+  E831                	ST1X:
+  E831  CD0600        			CALL	LETNL
+  E834  CD0600        			CALL	LETNL
+  E837  1160E8        			LD	DE,MSG_PRESS_RWM	; 'PRESS R, W OR M'
+  E83A  CD1500        			CALL	MSG
+  E83D  CD0600        			CALL	LETNL
+  E840  CD0600        			CALL	LETNL
+  E843  117CE8        			LD	DE,MSG_R_READ		; 'R: READ   S-RAM'
+  E846  CD1500        			CALL	MSG
+  E849  CD0600        			CALL	LETNL
+  E84C  1196E8        			LD	DE,MSG_W_WRITE		; 'W: WRITE  S-RAM'
+  E84F  CD1500        			CALL	MSG
+  E852  CD0600        			CALL	LETNL
+  E855  11B0E8        			LD	DE,MSG_M_MONITOR	; 'M: MONITOR'
+  E858  CD1500        			CALL	MSG
+  E85B  CD0600        			CALL	LETNL
+  E85E  1866          			JR	KEY_INPUT
+                      	
+                      	
+                      	;MSG_PRESS_RWM:	DB	'           P',05H,'RESS',05H,' R , W ',05H,'OR',05H,' M',0DH
+                      	;MSG_R_READ:	DB	'            R:',05H,'READ',05H,'  S-RAM',0DH
+                      	;MSG_W_WRITE:	DB	'            W:',05H,'WRITE',05H,' S-RAM',0DH
+                      	;MSG_M_MONITOR:	DB	'            M:',05H,'MONITOR',05H,0DH
+                      	
+  E860  20202020202020	MSG_PRESS_RWM:	DB	'           PRESS R , W OR M',0DH
+  E87C  20202020202020	MSG_R_READ:	DB	'            R:READ  S-RAM',0DH
+  E896  20202020202020	MSG_W_WRITE:	DB	'            W:WRITE S-RAM',0DH
+  E8B0  20202020202020	MSG_M_MONITOR:	DB	'            M:MONITOR',0DH
+                      	
+                      	
+                      	; =====================================================================================
+                      	;   キー入力
+                      	; =====================================================================================
+  E8C6                	KEY_INPUT:
+  E8C6  CD1B00        			CALL	GETKY
+  E8C9  FE4D          			CP	'M'
+  E8CB  CA4DEC        			JP	Z,MON1
+  E8CE  FE57          			CP	'W'
+  E8D0  CA9DE9        			JP	Z,WRITE_COMMAND
+  E8D3  FE52          			CP	'R'
+  E8D5  CADBE8        			JP	Z,READ_COMMAND
+  E8D8  C2C6E8        			JP	NZ,KEY_INPUT
+                      	
+                      	; =====================================================================================
+                      	;   READ S-RAM
+                      	; =====================================================================================
+  E8DB                	READ_COMMAND:
+  E8DB  3E16          			LD	A,16H
+  E8DD  CD1200        			CALL	PRNT
+  E8E0  CD0600        			CALL	LETNL
+  E8E3  CD0600        			CALL	LETNL
+  E8E6  CD0600        			CALL	LETNL
+  E8E9  111DEB        			LD	DE,MSG_LOADING_SRAM	; 'LOADING PROGRAM FROM S-RAM'
+  E8EC  CD1500        			CALL	MSG
+  E8EF  CD0600        			CALL	LETNL
+  E8F2  CD0600        			CALL	LETNL
+  E8F5  CD70E9        			CALL	CHECK			; Information's sum check
+  E8F8  C289E9        			JP	NZ,ERR_CSUM		; Check sum error
+  E8FB  DBF8          			IN	A,(0F8H)	 	; Counter reset
+                      	; ヘッダ 8 byte (Little Endian) + 1
+                      	; 00 W Size
+                      	; 02 W From
+                      	; 04 W Exec
+                      	; 06 W Check Sum
+                      	; 08 B ヘッダのチェックサム (ヘッダ8バイトの中の1のビット数)
+                      	
+  E8FD  DBF9          			IN	A,(0F9H)		; Size L
+  E8FF  4F            			LD	C,A
+  E900  DBF9          			IN	A,(0F9H)		; Size H
+  E902  47            			LD	B,A
+  E903  DBF9          			IN	A,(0F9H)		; From L
+  E905  6F            			LD	L,A
+  E906  DBF9          			IN	A,(0F9H)		; From H
+  E908  67            			LD	H,A
+  E909  DBF9          			IN	A,(0F9H)		; Exec L
+  E90B  5F            			LD	E,A
+  E90C  DBF9          			IN	A,(0F9H)		; Exec H
+  E90E  57            			LD	D,A
+  E90F  D5            			PUSH	DE
+  E910  50            			LD	D,B			; DE:=Size
+  E911  59            			LD	E,C
+  E912  DBF9          			IN	A,(0F9H)		; Check Sum L
+  E914  4F            			LD	C,A
+  E915  DBF9          			IN	A,(0F9H)		; Check Sum H
+  E917  47            			LD	B,A
+  E918  DBF9          			IN	A,(0F9H)		; ヘッダチェックサムを読み飛ばす
+  E91A  C5            			PUSH	BC
+  E91B  D5            			PUSH	DE
+  E91C  E5            			PUSH	HL
+  E91D  0EF9          			LD	C,0F9H
+  E91F  7B            			LD	A,E
+  E920  B7            			OR	A
+  E921  2803          			JR	Z,RD2			; 端数が無いとき
+  E923  47            			LD	B,A			; 端数があるとき、その分だけループ
+  E924                	RD1:
+  E924  EDB2          			INIR
+  E926                	RD2:
+  E926  0600          			LD	B,00H
+  E928  15            			DEC	D
+  E929  F224E9        			JP	P,RD1
+  E92C  D1            			POP	DE			; Data adr
+  E92D  C1            			POP	BC			; Size
+  E92E  CD50E9        			CALL	SUM
+  E931  D1            			POP	DE			; Check Sum
+  E932  B7            			OR	A
+  E933  ED52          			SBC	HL,DE			; HL==DE ?
+  E935  2052          			JR	NZ,ERR_CSUM
+                      	;
+                      	; [kaokun] アプリ動作が固まってしまうアプリへの対処
+  E937  FB            			EI				;カセットリード後EIになっているようなので踏襲
+  E938  3E00          			LD	A,00H			;TI$="000000"
+  E93A  110000        			LD	DE,0000H
+  E93D  CD3300        			CALL	TIMST
+  E940  3E04          			LD	A,4			;Init Music
+  E942  CD4100        			CALL	XTEMP
+  E945  CD4700        			CALL	MSTP
+                      	;
+  E948  E1            			POP	HL
+  E949  7C            			LD	A,H			;[kaokun]:1200Hより前の値はオートスタート無し
+  E94A  FE12          			CP	012H
+  E94C  DA5AEC        			JP	C,MON2
+  E94F  E9            			JP	(HL)
+                      	
+                      	
+                      	; =====================================================================================
+                      	;   sum check
+                      	; =====================================================================================
+                      	; IN BC=Size
+                      	;    DE=Data adr
+                      	; EXIT HL=Check sum
+                      	;
+  E950                	SUM:
+  E950  C5            			PUSH	BC
+  E951  D5            			PUSH	DE
+  E952  D9            			EXX
+  E953  210000        			LD	HL,0000H		; HL'= Check sum clr
+  E956  0E08          			LD	C,08H			; C' = Loop count
+  E958  D9            			EXX
+  E959                	SUMCK1:
+  E959  78            			LD	A,B			; BC = Size
+  E95A  B1            			OR	C
+  E95B  280F          			JR	Z,SUMCK2
+  E95D  1A            			LD	A,(DE)			; DE = Data adrs
+  E95E  D9            			EXX
+  E95F  41            			LD	B,C			; BC'
+  E960                	SUMCK3:
+  E960  07            			RLCA
+  E961  3001          			JR	NC,LE931
+  E963  23            			INC	HL			; HL' = Check sum data
+  E964                	LE931:
+  E964  10FA          			DJNZ	SUMCK3
+  E966  D9            			EXX
+  E967  13            			INC	DE			; DE
+  E968  0B            			DEC	BC			; BC
+  E969  C359E9        			JP	SUMCK1
+  E96C                	SUMCK2:
+  E96C  D9            			EXX
+  E96D  D1            			POP	DE
+  E96E  C1            			POP	BC
+  E96F  C9            			RET
+                      	
+                      	
+                      	
+                      	;
+                      	; =====================================================================================
+                      	;   Information's sum check
+                      	; =====================================================================================
+                      	;
+                      	;
+  E970                	CHECK:
+  E970  DBF8          			IN	A,(0F8H)		 ; Counter reset
+                      	; ヘッダ 8 byte (Little Endian) + 1
+                      	; 00 W Size
+                      	; 02 W From
+                      	; 04 W Exec
+                      	; 06 W Check Sum
+                      	; 08 B ヘッダのチェックサム (ヘッダ8バイトの中の1のビット数)
+  E972  010008        			LD	BC,0800H		; B=Byte Counter C=Sum Counter
+  E975                	CK1:
+  E975  DBF9          			IN	A,(0F9H)	 	; Counter=Counter+1
+  E977  C5            			PUSH	BC
+  E978  0608          			LD	B,08H			; Bit Counter
+  E97A                	CK2:
+  E97A  07            			RLCA
+  E97B  3001          			JR	NC,CK3
+  E97D  0C            			INC	C
+  E97E                	CK3:
+  E97E  10FA          			DJNZ	CK2
+  E980  79            			LD	A,C
+  E981  C1            			POP	BC
+  E982  4F            			LD	C,A
+  E983  10F0          			DJNZ	CK1
+  E985  DBF9          			IN	A,(0F9H)
+  E987  B9            			CP	C
+  E988  C9            			RET
+                      	
+                      	
+  E989                	ERR_CSUM:
+  E989  3E16          			LD	A,16H
+  E98B  CD1200        			CALL	PRNT
+  E98E  CD0600        			CALL	LETNL
+  E991  CD0600        			CALL	LETNL
+  E994  119DEA        			LD	DE,MSG_CSUMERR		; 'CHECK SUM ERROR'
+  E997  CD61EA        			CALL	LF_PRINT
+  E99A  C331E8        			JP	ST1X
+                      	
+                      	; =====================================================================================
+                      	;   WRITE  S-RAM
+                      	; =====================================================================================
+  E99D                	WRITE_COMMAND:
+  E99D  3E16          			LD	A,16H
+  E99F  CD1200        			CALL	PRNT
+  E9A2  CD0600        			CALL	LETNL
+  E9A5  CD0600        			CALL	LETNL
+  E9A8  CD0600        			CALL	LETNL
+  E9AB  11B8EA        			LD	DE,MSG_SRAM_PRG		; 'S-RAM PROGRAMMING'
+  E9AE  CD5AEA        			CALL	LF_PRINT_LF
+  E9B1  11D5EA        			LD	DE,MSG_SET_TAPE		; 'SET MASTER TAPE  PLAY'
+                      	;		CALL	 GET_BG_COLOR		; [KAOKUN] A=11H or 00H
+                      	;		LD	 HL,0D8F0H		; Hide "PLAY↓"
+                      	;		CALL	 FILL_6BYTESS		;
+  E9B4  CD0600        			CALL	LETNL
+  E9B7  CD5DEA        			CALL	PRINT_LF
+  E9BA  CD85EC        			CALL	CHECK_SD_PATCH		;ROMがSDパッチされているかチェック: CY=1されていない
+  E9BD  DC5FEC        			CALL	C,MOTOR_ON_NO_MSG	;(CY=1)SDパッチされていなければモーターONを待つ
+  E9C0  DA66EA        			JP	C,ERR_DISP	;BREAK
+  E9C3  CD2700        			CALL	RDINF
+  E9C6  F5            			PUSH	AF
+  E9C7  C5            			PUSH	BC
+  E9C8  ED4B0211      			LD	BC,(SIZE)
+  E9CC  3E7F          			LD	A,7FH
+  E9CE  B8            			CP	B
+  E9CF  380B          			JR	C,WR2			; too long
+  E9D1  2005          			JR	NZ,WR1
+  E9D3  3EF6          			LD	A,0F6H
+  E9D5  B9            			CP	C
+  E9D6  3804          			JR	C,WR2			; too long
+  E9D8                	WR1:
+  E9D8  C1            			POP	BC
+  E9D9  F1            			POP	AF
+  E9DA  1805          			JR	WR3
+  E9DC                	WR2:
+  E9DC  C1            			POP	BC
+  E9DD  F1            			POP	AF
+  E9DE  C382EA        			JP	ERR_TOO_LONG
+                      	
+  E9E1                	WR3:
+                      	;		LD	A,00H			;Erase "PLAY↓"
+                      	;		LD	HL,0D0F0H
+                      	;		CALL	FILL_6BYTESS
+                      	;		CALL	GET_FG_COLOR		; [KAOKUN] A=71H or 40H
+                      	;		LD	HL,0D8F0H
+                      	;		CALL	FILL_6BYTESS
+  E9E1  3E02          			LD	A,02H
+  E9E3  DA66EA        			JP	C,ERR_DISP
+  E9E6  CD0600        			CALL	LETNL
+  E9E9  11F7EA        			LD	DE,MSG_FOUND		; 'FOUND : '
+  E9EC  CD61EA        			CALL	LF_PRINT
+  E9EF  11F110        			LD	DE,NAME
+  E9F2  D5            			PUSH	DE
+  E9F3  DF            			RST	18H
+  E9F4  CD0600        			CALL	LETNL
+  E9F7  110AEB        			LD	DE,MSG_LOADING		; 'LOADING : '
+  E9FA  CD61EA        			CALL	LF_PRINT
+  E9FD  D1            			POP	DE
+  E9FE  DF            			RST	18H
+                      	;
+                      	;	Read data block
+                      	;
+  E9FF  CD2A00        			CALL	RDDAT
+  EA02  3862          			JR	C,ERR_DISP
+                      	;
+                      	;	Counter reset
+                      	;
+  EA04  DBF8          			IN	A,(0F8H)
+                      	;
+                      	;		Sum check for data
+                      	;
+  EA06  ED5B0411      			LD	DE,(DTADR)
+  EA0A  ED4B0211      			LD	BC,(SIZE)
+  EA0E  D5            			PUSH	DE
+  EA0F  C5            			PUSH	BC
+  EA10  CD50E9        			CALL	SUM
+  EA13  220811        			LD	(COMNT),HL
+                      	;
+                      	;	Write information (8Byte)
+                      	;
+  EA16  210211        			LD	HL,SIZE
+  EA19  01FA08        			LD	BC,08FAH		; B=Byte Counter=8, C=Write Data I/O Port=FA
+  EA1C  E5            			PUSH	HL
+  EA1D  C5            			PUSH	BC
+  EA1E  EDB3          			OTIR
+  EA20  C1            			POP	BC
+  EA21  E1            			POP	HL
+                      	;
+                      	;	Sum check for information block
+                      	;	    AccCheck sum data
+                      	;
+  EA22  D5            			PUSH	DE			; DE Size
+  EA23  1600          			LD	D,00H			; Sum Counter
+  EA25                	WCK1:
+  EA25  C5            			PUSH	BC
+  EA26  0608          			LD	B,08H
+  EA28  7E            			LD	A,(HL)
+  EA29                	WCK2:
+  EA29  07            			RLCA
+  EA2A  3001          			JR	NC,WCK3
+  EA2C  14            			INC	D
+  EA2D                	WCK3:
+  EA2D  10FA          			DJNZ	WCK2
+  EA2F  23            			INC	HL
+  EA30  C1            			POP	BC
+  EA31  10F2          			DJNZ	WCK1
+  EA33  7A            			LD	A,D
+  EA34  D1            			POP	DE
+  EA35  D3FA          			OUT	(0FAH),A
+                      	;
+                      	;	Write data block
+                      	;
+  EA37  D1            			POP	DE			; DE Size
+  EA38  E1            			POP	HL			; HL Data adrs
+  EA39  7B            			LD	A,E
+  EA3A  B7            			OR	A
+  EA3B  2803          			JR	Z,WR5
+  EA3D  43            			LD	B,E
+  EA3E                	WR4:
+  EA3E  EDB3          			OTIR
+  EA40                	WR5:
+  EA40  0600          			LD	B,00H
+  EA42  15            			DEC	D
+  EA43  F23EEA        			JP	P,WR4
+  EA46  3E16          			LD	A,16H
+  EA48  CD1200        			CALL	PRNT
+  EA4B  CD0600        			CALL	LETNL
+  EA4E  CD0600        			CALL	LETNL
+  EA51  1170EB        			LD	DE,MSG_WR_RAM_OK	; 'WRITING S-RAM O.K.!'
+  EA54  CD1500        			CALL	MSG
+  EA57  C331E8        			JP	ST1X
+                      	
+                      	
+  EA5A                	LF_PRINT_LF:
+  EA5A  CD0900        			CALL	QNL
+  EA5D                	PRINT_LF:
+  EA5D  DF            			RST	18H			;MSGX
+  EA5E  C30900        			JP	QNL
+                      	
+  EA61                	LF_PRINT:
+  EA61  CD0900        			CALL	QNL
+  EA64  DF            			RST	18H
+  EA65  C9            			RET
+                      	
+  EA66                	ERR_DISP:
+  EA66  FE02          			CP	02H
+  EA68  CA6EEA        			JP	Z,ERR_BREAK
+  EA6B  C389E9        			JP	ERR_CSUM
+                      	
+                      	;FILL_6BYTESS:
+                      	;		LD	B,06H
+                      	;FIL6_1:
+                      	;		LD	(HL),A
+                      	;		INC	HL
+                      	;		DEC	B
+                      	;		JR	NZ,FIL6_1
+                      	;		RET
+                      	
+  EA6E                	ERR_BREAK:
+  EA6E  3E16          			LD	A,16H
+  EA70  CD1200        			CALL	PRNT
+  EA73  CD0600        			CALL	LETNL
+  EA76  CD0600        			CALL	LETNL
+  EA79  115DEB        			LD	DE,MSG_BREAK	    ; 'BREAK !'
+  EA7C  CD1500        			CALL	MSG
+  EA7F  C331E8        			JP	ST1X
+                      	
+  EA82                	ERR_TOO_LONG:
+  EA82  110000        			LD	DE,0000H
+  EA85  ED530211      			LD	(SIZE),DE
+  EA89  3E16          			LD	A,16H
+  EA8B  CD1200        			CALL	PRNT
+  EA8E  CD0600        			CALL	LETNL
+  EA91  CD0600        			CALL	LETNL
+  EA94  118FEB        			LD	DE,MSG_FILE_TOO_LONG	    ; 'FILE IS TOO LONG'
+  EA97  CD1500        			CALL	MSG
+  EA9A  C331E8        			JP	ST1X
+                      	
+                      	
+                      	;MSG_CSUMERR:	DB      '           C',05H,'HECK SUM ERROR',05H,0DH
+                      	;MSG_SRAM_PRG:	DB      '           S-RAM ',05H,'PROGRAMMING',05H,0DH
+                      	;MSG_SET_TAPE:	DB      '        S',05H,'ET MASTER TAPE',05H,'   ',7FH,'P',05H,'LAY',05H,'  ',0DH
+                      	;MSG_FOUND:	DB      '         F',05H,'OUND',05H,'  : ',0DH
+                      	;MSG_LOADING:	DB      '         L',05H,'OADING',05H,': ',0DH
+                      	;MSG_LOADING_SRAM: DB   '      L',05H,'OADING PROGRAM FROM ',05H,'S-RAM',0DH
+                      	;LEB3E:		DB      '**  MONITOR 1Z-009A  **',0DH
+                      	;MSG_RD_RAM_OK:	DB      '           R',05H,'EADING',05H,' S-RAM O.K.!',0DH
+                      	;MSG_BREAK:	DB      '           B',05H,'REAK',05H,' !',0DH
+                      	;MSG_WR_RAM_OK:	DB      '           W',05H,'RITING',05H,' S-RAM O.K.!',0DH
+                      	;MSG_FILE_TOO_LONG: DB  '           F',05H,'ILE IS TOO LONG',05H,0DH
+                      	
+  EA9D  20202020202020	MSG_CSUMERR:	DB      '           CHECK SUM ERROR',0DH
+  EAB8  20202020202020	MSG_SRAM_PRG:	DB      '           S-RAM PROGRAMMING',0DH
+  EAD5  20202020202020	MSG_SET_TAPE:	DB      '        SET MASTER TAPE   ',7FH,'PLAY  ',0DH
+  EAF7  20202020202020	MSG_FOUND:	DB      '         FOUND  : ',0DH
+  EB0A  20202020202020	MSG_LOADING:	DB      '         LOADING: ',0DH
+  EB1D  2020202020204C	MSG_LOADING_SRAM: DB    '      LOADING PROGRAM FROM S-RAM',0DH
+  EB3E  20202020202020	MSG_RD_RAM_OK:	DB      '           READING S-RAM O.K.!',0DH
+  EB5D  20202020202020	MSG_BREAK:	DB      '           BREAK !',0DH
+  EB70  20202020202020	MSG_WR_RAM_OK:	DB      '           WRITING S-RAM O.K.!',0DH
+  EB8F  20202020202020	MSG_FILE_TOO_LONG: DB   '           FILE IS TOO LONG',0DH
+                      	
+                      	
+                      	; =====================================================================================
+                      	;  ボードの存在チェック
+                      	;  CY=No board
+                      	; =====================================================================================
+  EBAB                	CHK_BOARD:	; Check if board exists
+  EBAB  DBF8          			IN		A,(0F8H)		; Counter reset
+  EBAD  DBF9          			IN		A,(0F9H)		; Save data
+  EBAF  F5            			PUSH		AF
+                      	
+  EBB0  3E00          			LD		A,0
+  EBB2  CDD8EB        			CALL		CHK_BOARD_SUB
+  EBB5  201D          			JR		NZ,CHK_BOARD_NG
+                      	
+  EBB7  3EFF          			LD		A,0FFH
+  EBB9  CDD8EB        			CALL		CHK_BOARD_SUB
+  EBBC  2016          			JR		NZ,CHK_BOARD_NG
+                      	
+  EBBE  3E55          			LD		A,55H
+  EBC0  CDD8EB        			CALL		CHK_BOARD_SUB
+  EBC3  200F          			JR		NZ,CHK_BOARD_NG
+                      	
+  EBC5  3EAA          			LD		A,0AAH
+  EBC7  CDD8EB        			CALL		CHK_BOARD_SUB
+  EBCA  2008          			JR		NZ,CHK_BOARD_NG
+                      	
+  EBCC  F1            			POP		AF
+  EBCD  CDD8EB        			CALL		CHK_BOARD_SUB
+  EBD0  2002          			JR		NZ,CHK_BOARD_NG
+                      	
+  EBD2  AF            			XOR		A			; OK
+  EBD3  C9            			RET
+                      	
+  EBD4                	CHK_BOARD_NG:
+  EBD4  F1            			POP		AF
+  EBD5  AF            			XOR		A
+  EBD6  37            			SCF
+  EBD7  C9            			RET
+                      	
+  EBD8                	CHK_BOARD_SUB:
+  EBD8  C5            			PUSH		BC
+  EBD9  4F            			LD		C,A
+  EBDA  DBF8          			IN		A,(0F8H)		; Counter reset
+  EBDC  79            			LD		A,C
+  EBDD  D3FA          			OUT		(0FAH),A		; WRITE, Counter++
+  EBDF  DBF8          			IN		A,(0F8H)		; Counter reset
+  EBE1  DBF9          			IN		A,(0F9H)		; READ, Counter++
+  EBE3  B9            			CP		C			; CHECK
+  EBE4  DBF8          			IN		A,(0F8H)		; Counter reset
+  EBE6  79            			LD		A,C
+  EBE7  C1            			POP		BC
+  EBE8  C9            			RET
+                      	
+                      	; =====================================================================================
+                      	;  モニタのエントリアドレスを得る
+                      	;  DE=OPENING MSG, HL=ENTRY, CY=UNKNOWN, B=文字色, C=BG色
+                      	; =====================================================================================
+  EBE9                	GET_MON_ADDR:
+  EBE9  3A4E01        			LD		A,(014EH)
+  EBEC  FE50          			CP		'P'			;014EHが'P'ならMZ-80K
+                      	
+  EBEE  114101        			LD		DE,0141H		;"**  MONITOR..." などオープニングメッセージのアドレス
+  EBF1  014040        			LD		BC,4040H		;Green, Black
+  EBF4  218200        			LD		HL,MONITOR_80K
+  EBF7  CA4BEC        			JP		Z,COMMON
+  EBFA  FE4E          			CP		'N'			;014EHが'N'ならFN-700
+  EBFC  218200        			LD		HL,MONITOR_80K
+  EBFF  011171        			LD		BC,7111H		;White, Blue
+  EC02  CA4BEC        			JP		Z,COMMON
+  EC05  FE20          			CP		20H			;014EHが' 'ならMZ-NEW MONITOR MZ-80K ("MONITOR VER"のスペース)
+  EC07  218200        			LD		HL,MONITOR_NEWMON
+  EC0A  014040        			LD		BC,4040H		;Green, Black
+  EC0D  CA4BEC        			JP		Z,COMMON
+  EC10  3A4501        			LD		A,(0145H)
+  EC13  FE37          			CP		'7'			;0145Hが'7'ならMZ-NEW MONITOR MZ-700 ("MZ700"の"7")
+  EC15  218200        			LD		HL,MONITOR_NEWMON7
+  EC18  017171        			LD		BC,7171H		;White, Blue
+  EC1B  CA4BEC        			JP		Z,COMMON
+                      	
+  EC1E  3A0D01        			LD		A,(010DH)		;010DHが'A'ならMZ-80A ("SA-1510"の"A")
+  EC21  FE41          			CP		'A'
+  EC23  110001        			LD		DE,0100H		;"** SA-1510...
+  EC26  219500        			LD		HL,MONITOR_80A
+  EC29  014040        			LD		BC,4040H		;Green, Black
+  EC2C  CA4BEC        			JP		Z,COMMON
+                      	
+  EC2F  3AEB06        			LD		A,(06EBH)
+  EC32  FE4D          			CP		'M'			;06EBHが'M'ならMZ-700 (JP/EU 共通)
+  EC34  11E706        			LD		DE,06E7H		;"** MONITOR 1Z-.."
+  EC37  21AD00        			LD		HL,MONITOR_700
+  EC3A  011171        			LD		BC,7111H		;White, Blue
+  EC3D  CA4BEC        			JP		Z,COMMON
+                      	; UNKNOWN ROM: CY=1
+  EC40  110000        			LD		DE,0
+  EC43  210000        			LD		HL,0
+  EC46  010040        			LD		BC,4000H		;Green, Black
+  EC49  37            			SCF
+  EC4A  C9            			RET
+  EC4B                	COMMON:
+  EC4B  AF            			XOR		A			; CY=0
+  EC4C  C9            			RET
+                      	
+                      	;GET_FG_COLOR:
+                      	;		PUSH		HL
+                      	;		PUSH		DE
+                      	;		PUSH		BC
+                      	;		CALL		GET_MON_ADDR
+                      	;		LD		A,B
+                      	;		JR		GET_BG_RET
+                      	;GET_BG_COLOR:
+                      	;		PUSH		HL
+                      	;		PUSH		DE
+                      	;		PUSH		BC
+                      	;		CALL		GET_MON_ADDR
+                      	;		LD		A,C
+                      	;GET_BG_RET:
+                      	;		POP		BC
+                      	;		POP		DE
+                      	;		POP		HL
+                      	;		RET
+                      	
+                      	; =====================================================================================
+                      	;  モニタのコマンド待ちへ
+                      	; =====================================================================================
+  EC4D                	MON1:
+  EC4D  3E16          			LD		A,16H			;CLS
+  EC4F  CD1200        			CALL		PRNT
+  EC52  CDE9EB        			CALL		GET_MON_ADDR		;DE=OPENING MSG, HL=ENTRY, CY=UNKNOWN
+  EC55  E5            			PUSH		HL
+  EC56  D41500        			CALL		NC,MSG
+  EC59  C9            			RET					;Jump to Entry
+                      	
+  EC5A                	MON2:
+  EC5A  CDE9EB        			CALL		GET_MON_ADDR		;DE=OPENING MSG, HL=ENTRY, CY=UNKNOWN
+  EC5D  E5            			PUSH		HL
+  EC5E  C9            			RET					;Jump to Entry
+                      	
+                      	; =====================================================================================
+                      	; PLAY↓を出さずモーターONを待つ
+                      	; =====================================================================================
+                      	;
+                      	; CY=0: OK
+                      	; CY=1: BREAK (A=02H)
+                      	;
+                      	
+  EC5F                	MOTOR_ON_NO_MSG:
+  EC5F  C5            			PUSH	BC
+  EC60  D5            			PUSH	DE
+  EC61  E5            			PUSH	HL
+  EC62                	MOTOR_ON_L1:
+  EC62  0E0A          			LD	C,10		; 10回トライ
+  EC64                	MOTOR_ON_L2:
+  EC64  3A02E0        			LD	A,(CSTR)	; Motor ON ?
+  EC67  E610          			AND	10H
+  EC69  2803          			JR	Z,MOTOR_ON_FF	; OFF => Try to ON
+  EC6B  AF            			XOR	A		; A=0, CY=OFF
+  EC6C  1813          			JR	MOTOR_ON_RET	; RETURN
+  EC6E                	MOTOR_ON_FF:
+  EC6E  3E06          			LD	A,06H		; Try to flip MOTOR FF
+  EC70  2103E0        			LD	HL,CSTPT
+  EC73  77            			LD	(HL),A
+  EC74  3C            			INC	A
+  EC75  77            			LD	(HL),A
+  EC76  0D            			DEC	C
+  EC77  20EB          			JR	NZ,MOTOR_ON_L2	; Check Motor again
+                      	; 以下モータONの10回試行後
+  EC79  CD1E00        			CALL	BRKEY		; SHIFT + BREAK チェック
+  EC7C  20E4          			JR	NZ,MOTOR_ON_L1	; 押されていなければ最初から
+  EC7E  3E02          			LD	A,02H
+  EC80  37            			SCF			; BREAK 時は A=2, CY=1 でリターン
+  EC81                	MOTOR_ON_RET:
+  EC81  E1            			POP	HL
+  EC82  D1            			POP	DE
+  EC83  C1            			POP	BC
+  EC84  C9            			RET
+                      	
+                      	; =====================================================================================
+                      	;  ROMがSDパッチされているかチェック
+                      	;   APPLIED	: A=0,	Z=1, CY=0
+                      	;   NOT APPLIED : A=NZ, Z=0, CY=1
+                      	; =====================================================================================
+  EC85                	CHECK_SD_PATCH:
+  EC85  E5            			PUSH	HL
+  EC86  2A2800        			LD	HL,(RDINF+1)		; HL=RDINFの飛び先
+  EC89  23            			INC	HL			; F3 をSKIP
+  EC8A  7E            			LD	A,(HL)
+  EC8B  D6C3          			SUB	0C3H			; JP命令に書き換わっているか?
+  EC8D  2006          			JR	NZ,SD_PATCH_NOT_APPLIED
+  EC8F  3A00F0        			LD	A,(0F000H)		; FD ROMがあるか?
+  EC92  B7            			OR	A			; 00=ROMあり
+  EC93  2801          			JR	Z,SD_PATCH_APPLIED
+  EC95                	SD_PATCH_NOT_APPLIED:
+  EC95  37            			SCF
+  EC96                	SD_PATCH_APPLIED:
+  EC96  E1            			POP	HL
+  EC97  C9            			RET
+                      	
+                      	; =====================================================================================
+                      	;  Padding
+                      	; =====================================================================================
+  EC98                	NOW:
+  EC98                			DS	0F000H - NOW
+                      	
+                      	
+                      	
+  F000                			END
+

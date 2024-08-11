@@ -1,0 +1,110 @@
+--- pico.org/pico-sdk/lib/tinyusb/hw/mcu/raspberry_pi/Pico-PIO-USB/src/pio_usb_device.c	2023-12-29 21:25:59.835810801 +0900
++++ pico/pico-sdk/lib/tinyusb/hw/mcu/raspberry_pi/Pico-PIO-USB/src/pio_usb_device.c	2023-12-29 21:32:50.450053304 +0900
+@@ -11,6 +11,8 @@
+ #include <stdio.h>
+ #include <string.h>
+ 
++#include "pico.h"      // kaokun: for gcc 12+
++
+ #include "pio_usb.h"
+ #include "pio_usb_ll.h"
+ #include "usb_crc.h"
+--- pico.org/pico-examples/usb/CMakeLists.txt	2023-12-29 21:55:40.487203279 +0900
++++ pico/pico-examples/usb/CMakeLists.txt	2023-12-29 22:06:37.719202557 +0900
+@@ -9,11 +9,11 @@ else ()
+     message("Skipping TinyUSB host examples as TinyUSB is unavailable")
+ endif ()
+ if (TARGET tinyusb_pico_pio_usb)
+-    if ((NOT CMAKE_C_COMPILER_ID STREQUAL "GNU") OR CMAKE_C_COMPILER_VERSION VERSION_GREATER_EQUAL 11.3)
+-        message("Skipping TinyUSB dual examples, as TinyUSB hw/mcu/raspberry_pi/Pico-PIO-USB does not currently compile on non GCC or GCC 11.3 or greater")
++    if (NOT CMAKE_C_COMPILER_ID STREQUAL "GNU")
++        message("Skipping TinyUSB dual examples, as TinyUSB hw/mcu/raspberry_pi/Pico-PIO-USB does not currently compile on non GCC")
+     else()
+         add_subdirectory(dual)
+     endif()
+ else ()
+     message("Skipping TinyUSB dual examples, as TinyUSB hw/mcu/raspberry_pi/Pico-PIO-USB submodule unavailable")
+-endif ()
+\ No newline at end of file
++endif ()
+diff -upr pico.orig/pico-sdk/lib/tinyusb/hw/bsp/rp2040/family.c pico/pico-sdk/lib/tinyusb/hw/bsp/rp2040/family.c
+--- pico.orig/pico-sdk/lib/tinyusb/hw/bsp/rp2040/family.c	2024-05-24 13:24:10.697849439 +0900
++++ pico/pico-sdk/lib/tinyusb/hw/bsp/rp2040/family.c	2024-05-25 15:46:11.605216486 +0900
+@@ -32,6 +32,11 @@
+ #include "hardware/structs/ioqspi.h"
+ #include "hardware/structs/sio.h"
+ 
++// kaokun: pico w LED support
++#ifdef RASPBERRYPI_PICO_W
++  #include "pico/cyw43_arch.h"
++#endif
++
+ #include "bsp/board.h"
+ #include "board.h"
+ 
+@@ -143,6 +148,10 @@ void board_init(void)
+   gpio_init(LED_PIN);
+   gpio_set_dir(LED_PIN, GPIO_OUT);
+ #endif
++// kaokun: pico w LED support
++#ifdef RASPBERRYPI_PICO_W
++  cyw43_arch_init();
++#endif
+ 
+   // Button
+ #ifndef BUTTON_BOOTSEL
+@@ -178,6 +187,10 @@ void board_led_write(bool state)
+ #ifdef LED_PIN
+   gpio_put(LED_PIN, state ? LED_STATE_ON : (1-LED_STATE_ON));
+ #endif
++// kaokun: pico w LED support
++#ifdef RASPBERRYPI_PICO_W
++  cyw43_arch_gpio_put(CYW43_WL_GPIO_LED_PIN, state ? 1 : 0);
++#endif
+ }
+ 
+ uint32_t board_button_read(void)
+diff -upr pico.orig/pico-sdk/lib/tinyusb/hw/bsp/rp2040/family.cmake pico/pico-sdk/lib/tinyusb/hw/bsp/rp2040/family.cmake
+--- pico.orig/pico-sdk/lib/tinyusb/hw/bsp/rp2040/family.cmake	2024-05-24 13:24:10.697849439 +0900
++++ pico/pico-sdk/lib/tinyusb/hw/bsp/rp2040/family.cmake	2024-05-25 15:41:49.229125639 +0900
+@@ -33,18 +33,38 @@ if (NOT TARGET _rp2040_family_inclusion_
+ 			${TOP}/src/common/tusb_fifo.c
+ 			)
+ 
+-	target_include_directories(tinyusb_common_base INTERFACE
++	#------------------------------------
++        # kaokun: pico w LED support
++	#------------------------------------
++        if (PICO_CYW43_SUPPORTED) # set by PICO_BOARD=pico_w
++		target_include_directories(tinyusb_common_base INTERFACE
+ 			${TOP}/src
+ 			${TOP}/src/common
++			${TOP}/src/rp2_common
+ 			${TOP}/hw
+ 			)
+ 
+-	target_link_libraries(tinyusb_common_base INTERFACE
++		target_link_libraries(tinyusb_common_base INTERFACE
+ 			hardware_structs
+ 			hardware_irq
+ 			hardware_resets
+ 			pico_sync
++			pico_cyw43_arch_none
+ 			)
++	else()
++		target_include_directories(tinyusb_common_base INTERFACE
++			${TOP}/src
++			${TOP}/src/common
++			${TOP}/hw
++			)
++
++		target_link_libraries(tinyusb_common_base INTERFACE
++			hardware_structs
++			hardware_irq
++			hardware_resets
++			pico_sync
++			)
++	endif()
+ 
+ 	set(TINYUSB_DEBUG_LEVEL 0)
+ 	if (CMAKE_BUILD_TYPE STREQUAL "Debug")

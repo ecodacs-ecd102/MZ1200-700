@@ -1,0 +1,72 @@
+GAL22V10
+MZ1200_RAM_SELECTOR_LATCH_CONTROL_22V10
+
+;1        2         3         4         5         6         7         8         9         10        11        12
+/IORQ     /WR       A7        A6        A5        A4        A3        A2        A1        A0        /RESET    GND
+;13       14        15        16        17        18        19        20        21        22        23        24
+NC        MRAMCLR   /MRAMEN   IORAMCLR  /IORAMEN  PCG15LCH  /PCG15CLR /PCG15EN  NC        NC        IORAMEN0  VCC
+
+;
+;INPUTs
+; /IORQ, /WR, A7-A0, /RESET : From Z-80
+
+;
+;OUTPUTs
+; MRAMSET : I/O $E0 WRITE
+; MRAMCLR : I/O $E2, $E4 WRITE, RESET
+; MRAMEN  : $0000-$0FFF をRAMにするならActive
+; IORAMSET: I/O $E1 WRITE
+; IORAMCLR: I/O $E3, $E4 WRITE, RESET
+; IORAMEN : $D000-$FFFF をRAMにするならActive (PCG15ENがアクティブの時はアクティブとならない)
+; ↓作るどうか分かりませんが、MZ-1500仕様に拡張をする場合に備えて動作互換は取っておく
+; PCG15LCH: I/O $E5 WRITE : 外部のMZ-1500仕様PCGバンクレジスタラッチ用のラッチタイミング
+; PCG15CLR: I/O $E6, $E4 WRITE, RESET : 外部のMZ-1500仕様PCGバンクレジスタ用のリセットタイミング
+; /PCG15EN: MZ-1500仕様PCGバンクが有効となっている事を示す(IORAMENよりも優先度が高い)
+;
+
+; MRAMCLR: I/O $E2, $E4 WRITE, RESET
+MRAMCLR = IORQ * WR * A7 * A6 * A5 * /A4 * /A3 * /A2 *  A1 * /A0 \	// $E2
+        + IORQ * WR * A7 * A6 * A5 * /A4 * /A3 *  A2 * /A1 * /A0 \	// $E4
+        + RESET
+
+; MRAMEN: I/O $E0 WRITE + 自身をクリアでない限りラッチする
+MRAMEN = MRAMEN * /MRAMCLR \		// 自身をラッチ。MRAMCLRでリセット
+       + IORQ * WR * A7 * A6 * A5 * /A4 * /A3 * /A2 * /A1 * /A0 	// $E0
+
+
+; IORAMCLR: I/O $E3, $E4 WRITE, RESET
+IORAMCLR = IORQ * WR * A7 * A6 * A5 * /A4 * /A3 * /A2 *  A1 *  A0 \	// $E3
+         + IORQ * WR * A7 * A6 * A5 * /A4 * /A3 *  A2 * /A1 * /A0 \	// $E4
+         + RESET
+
+; IORAMEN: I/O $E1 WRITE + 自身をクリアでない限りラッチする
+;          PCG15EN の裏で状態変化する必要があるので IORAMEN0 でラッチしておく
+IORAMEN0 = IORAMEN0 * /IORAMCLR \ 	// 自身をラッチ。IORAMCLRでリセット
+         + IORQ * WR * A7 * A6 * A5 * /A4 * /A3 * /A2 * /A1 *  A0 	// $E1
+IORAMEN  = IORAMEN0 * /PCG15EN
+
+; PCG15CLR: I/O $E6, $E4 WRITE, RESET : 外部のMZ-1500仕様PCGバンクレジスタ用のリセットタイミング
+PCG15CLR = IORQ * WR * A7 * A6 * A5 * /A4 * /A3 *  A2 *  A1 * /A0 \	// $E6
+         + IORQ * WR * A7 * A6 * A5 * /A4 * /A3 *  A2 * /A1 * /A0 \	// $E4
+         + RESET
+
+; PCG15LCH: I/O $E5 WRITE : 外部ラッチ用のラッチタイミング
+PCG15LCH = IORQ * WR * A7 * A6 * A5 * /A4 * /A3 *  A2 * /A1 *  A0 	// $E5
+
+; PCG15EN: I/O $E5 WRITE + 自身をクリアでない限りラッチする
+PCG15EN = PCG15EN * /PCG15CLR \		// 自身をラッチ。MRAMCLRでリセット
+        + IORQ * WR * A7 * A6 * A5 * /A4 * /A3 *  A2 * /A1 *  A0 	// $E5
+
+
+DESCRIPTION
+
+ E0-E4, I/O, WRITE: RAMバンク制御。データは何でも良い
+ E0: $0000-$0FFFをRAM化
+ E1: $D000-$FFFFをRAM化
+ E2: $0000-$0FFFをROMに戻す
+ E3: $D000-$FFFFをVRAM+I/Oに戻す
+ E4: $0000-$0FFFをROMに戻す + $D000-$FFFFをVRAM+I/Oに戻す
+
+ E5-E6, I/O, WRITE: PCGバンク制御。PCGバンクはRAMバンクに優先
+ E5: $D000-$FFFFをPCGバンク化		Bit 0,1=BANK: 00=ROM, 01=B, 10=R, 11=G
+ E6: $D000-$FFFFのPCGバンク化を止める	データは何でも良い

@@ -1,0 +1,7 @@
+USBキーボードアダプタで内部状態同期のため[ALPHA]専用キーを作りたい
+([GRPH]は変更すると影響がデカイため[ALPHA],[GRPH]と2キー押しとする)
+Left :SA-1510.orig.bin
+Right:SA-1510+ALPHA.bin
+00000BF0 00 C9
+00000C38 00 C9
+00000C70 00 C9
