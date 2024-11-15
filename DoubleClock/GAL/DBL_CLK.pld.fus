@@ -1,8 +1,8 @@
 
 
-Pin 19 = TRIG         XOR = 0   AC1 = 1
+Pin 19 = TRIG         XOR = 1   AC1 = 1
   0  ---- ---- ---- ---- ---- ---- ---- ----
-  1  ---- x--- ---- ---- ---- -x-- ---x ----
+  1  ---- -xx- ---- ---- ---- -x-- ---- ----
   2  xxxx xxxx xxxx xxxx xxxx xxxx xxxx xxxx
   3  xxxx xxxx xxxx xxxx xxxx xxxx xxxx xxxx
   4  xxxx xxxx xxxx xxxx xxxx xxxx xxxx xxxx
